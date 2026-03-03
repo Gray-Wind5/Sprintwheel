@@ -2,6 +2,8 @@ from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
+from pydantic import BaseModel
+
 from app.db.session import Base
 
 class Project(Base):

@@ -15,3 +15,10 @@ class ProjectOut(BaseModel):
     name: str
     sprint_duration: int
     project_velocity: float
+    
+class JoinProjectIn(BaseModel):
+    role: str
+
+class ProjectMembershipOut(BaseModel):
+    project_id: str
+    role: str
