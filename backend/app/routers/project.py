@@ -6,7 +6,7 @@ from app.db.session import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.project import Project
-from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectOut
+from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectOut, UpdateRoleIn
 from app.models.project_members import ProjectMember
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectOut, JoinProjectIn, ProjectMembershipOut
 
