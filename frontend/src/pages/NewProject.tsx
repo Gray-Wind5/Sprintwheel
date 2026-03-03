@@ -6,6 +6,21 @@ import { createProject, getProject, joinProject } from "../api/projects";
 
 type Status = "idle" | "loading" | "success" | "error";
 
+function roleToUrlKey(role: string): string {
+  switch (role) {
+    case "Product Owner":
+      return "product-owner";
+    case "Scrum Facilitator":
+      return "scrum-facilitator";
+    case "Developer":
+      return "developer";
+    case "Member":
+      return "member";
+    default:
+      return "member";
+  }
+}
+
 const styles: Record<string, React.CSSProperties> = {
   shell: {
     minHeight: "100vh",
@@ -164,7 +179,9 @@ export default function NewProject(): JSX.Element {
       setCreateStatus("success");
       setCreateMsg(`Created project “${created.name}”. Redirecting…`);
 
-      navigate(`/projects/${created.id}/dashboard`);
+      // ✅ If the creator should land as Product Owner (common pattern)
+      const roleKey = roleToUrlKey("Product Owner");
+      navigate(`/projects/${created.id}/${roleKey}/dashboard`);
     } catch (err: any) {
       setCreateStatus("error");
       setCreateMsg(
@@ -191,15 +208,16 @@ export default function NewProject(): JSX.Element {
       // 1) Verify project exists
       await getProject(id);
 
-      // 2) Join it (role required by your API shape; set a default for now)
-      await joinProject(id, { role: "Developer" });
+      // 2) Join it
+      const chosenRole = "Developer";
+      await joinProject(id, { role: chosenRole });
 
       setJoinStatus("success");
       setJoinMsg("Joined project. Redirecting…");
 
+      // ✅ role-options route has NO role segment
       navigate(`/projects/${id}/role-options`);
     } catch (err: any) {
-      // If your api() throws Response-like errors, this will still fall back safely.
       const msg =
         err?.status === 404 || /404|not found/i.test(String(err?.message))
           ? "Project not found. Double-check the project ID."
