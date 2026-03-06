@@ -1,25 +1,10 @@
 // src/pages/NewProject.tsx
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createProject, getProject, joinProject } from "../api/projects";
 
 type Status = "idle" | "loading" | "success" | "error";
-
-function roleToUrlKey(role: string): string {
-  switch (role) {
-    case "Product Owner":
-      return "product-owner";
-    case "Scrum Facilitator":
-      return "scrum-facilitator";
-    case "Developer":
-      return "developer";
-    case "Member":
-      return "member";
-    default:
-      return "member";
-  }
-}
 
 const styles: Record<string, React.CSSProperties> = {
   shell: {
@@ -48,14 +33,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 15,
     lineHeight: 1.5,
   },
-
   grid: {
     display: "grid",
     gridTemplateColumns: "1fr",
     gap: 16,
     marginTop: 22,
   },
-
   panel: {
     borderRadius: 20,
     padding: 18,
@@ -83,7 +66,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   panelTitle: { margin: 0, fontSize: 18, fontWeight: 800 },
   panelDesc: { margin: "6px 0 0 0", fontSize: 13, opacity: 0.8 },
-
   formRow: {
     display: "grid",
     gridTemplateColumns: "1fr",
@@ -91,23 +73,23 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: 12,
   },
   input: {
-  width: "100%",
-  maxWidth: 420,
-  boxSizing: "border-box",
-  borderRadius: 12,
-  padding: "12px 12px",
-  background: "rgba(255,255,255,0.08)",
-  border: "1px solid rgba(255,255,255,0.14)",
-  color: "white",
-  outline: "none",
-  fontSize: 14,
-},
+    width: "100%",
+    maxWidth: 420,
+    boxSizing: "border-box",
+    borderRadius: 12,
+    padding: "12px 12px",
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    color: "white",
+    outline: "none",
+    fontSize: 14,
+  },
   inlineRow: {
-  display: "flex",
-  gap: 10,
-  alignItems: "center",
-  flexWrap: "wrap",
-},
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
   button: {
     borderRadius: 999,
     padding: "12px 16px",
@@ -143,12 +125,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-export default function NewProject(): JSX.Element {
+export default function NewProject(): React.JSX.Element {
   const navigate = useNavigate();
 
   // Create Project state
   const [projectName, setProjectName] = useState<string>("New Project");
-  const [sprintDuration, setSprintDuration] = useState<number>(14);
+  const [sprintDurationInput, setSprintDurationInput] = useState<string>("14");
   const [createStatus, setCreateStatus] = useState<Status>("idle");
   const [createMsg, setCreateMsg] = useState<string>("");
 
@@ -166,10 +148,17 @@ export default function NewProject(): JSX.Element {
     if (isBusy) return;
 
     const name = projectName.trim() || "New Project";
-    const duration = Number.isFinite(sprintDuration) ? sprintDuration : 14;
+    const parsedDuration = Number(sprintDurationInput);
+    const duration =
+      Number.isFinite(parsedDuration) && parsedDuration > 0
+        ? parsedDuration
+        : 14;
 
     setCreateStatus("loading");
     setCreateMsg("");
+    setJoinStatus("idle");
+    setJoinMsg("");
+
     try {
       const created = await createProject({
         name,
@@ -177,11 +166,12 @@ export default function NewProject(): JSX.Element {
       });
 
       setCreateStatus("success");
-      setCreateMsg(`Created project “${created.name}”. Redirecting…`);
+      setCreateMsg(`Created project "${created.name}". Redirecting...`);
 
-      // ✅ If the creator should land as Product Owner (common pattern)
-      const roleKey = roleToUrlKey("Product Owner");
-      navigate(`/projects/${created.id}/${roleKey}/dashboard`);
+      // New flow:
+      // After creating a project, send the user to role-options first.
+      // Any default role assignment should be handled by the backend.
+      navigate(`/projects/${created.id}/role-options`, { replace: true });
     } catch (err: any) {
       setCreateStatus("error");
       setCreateMsg(
@@ -203,20 +193,21 @@ export default function NewProject(): JSX.Element {
 
     setJoinStatus("loading");
     setJoinMsg("");
+    setCreateStatus("idle");
+    setCreateMsg("");
 
     try {
-      // 1) Verify project exists
+      // Verify the project exists first
       await getProject(id);
 
-      // 2) Join it
-      const chosenRole = "Developer";
-      await joinProject(id, { role: chosenRole });
+      // Join with Developer as the initial/default role
+      await joinProject(id, { role: "Developer" });
 
       setJoinStatus("success");
-      setJoinMsg("Joined project. Redirecting…");
+      setJoinMsg('Joined project as "Developer". Redirecting...');
 
-      // ✅ role-options route has NO role segment
-      navigate(`/projects/${id}/role-options`);
+      // Role-options route has no role segment
+      navigate(`/projects/${id}/role-options`, { replace: true });
     } catch (err: any) {
       const msg =
         err?.status === 404 || /404|not found/i.test(String(err?.message))
@@ -230,7 +221,9 @@ export default function NewProject(): JSX.Element {
   }
 
   function onJoinKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") handleJoinProject();
+    if (e.key === "Enter") {
+      void handleJoinProject();
+    }
   }
 
   return (
@@ -249,7 +242,6 @@ export default function NewProject(): JSX.Element {
         </div>
 
         <div style={styles.grid}>
-          {/* Create New Project */}
           <div style={styles.panel}>
             <div style={styles.panelHeader}>
               <div style={styles.panelTitleWrap}>
@@ -257,8 +249,7 @@ export default function NewProject(): JSX.Element {
                 <div>
                   <h2 style={styles.panelTitle}>Create New Project</h2>
                   <p style={styles.panelDesc}>
-                    Start fresh. We’ll create it and send you straight to the
-                    dashboard.
+                    Start fresh. We&apos;ll create it and send you to role setup.
                   </p>
                 </div>
               </div>
@@ -272,10 +263,11 @@ export default function NewProject(): JSX.Element {
                 placeholder="Project name"
                 disabled={isBusy}
               />
+
               <input
                 style={styles.input}
-                value={String(sprintDuration)}
-                onChange={(e) => setSprintDuration(Number(e.target.value))}
+                value={sprintDurationInput}
+                onChange={(e) => setSprintDurationInput(e.target.value)}
                 placeholder="Sprint duration (days)"
                 inputMode="numeric"
                 disabled={isBusy}
@@ -293,7 +285,7 @@ export default function NewProject(): JSX.Element {
                 whileHover={isBusy ? undefined : { y: -2 }}
                 whileTap={isBusy ? undefined : { scale: 0.98 }}
               >
-                {createStatus === "loading" ? "Creating…" : "Create New Project"}
+                {createStatus === "loading" ? "Creating..." : "Create New Project"}
               </motion.button>
 
               {createStatus === "error" && (
@@ -304,13 +296,13 @@ export default function NewProject(): JSX.Element {
               )}
               {createStatus === "idle" && (
                 <div style={styles.hint}>
-                  Tip: you can rename and adjust sprint settings later.
+                  Tip: you can rename the project and adjust sprint settings
+                  later.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Join Project */}
           <div style={styles.panel}>
             <div style={styles.panelHeader}>
               <div style={styles.panelTitleWrap}>
@@ -318,8 +310,8 @@ export default function NewProject(): JSX.Element {
                 <div>
                   <h2 style={styles.panelTitle}>Join Project</h2>
                   <p style={styles.panelDesc}>
-                    Enter a Project ID to join. If it exists, we’ll add you and
-                    take you to role setup.
+                    Enter a Project ID to join. If it exists, we&apos;ll add you
+                    and take you to role setup.
                   </p>
                 </div>
               </div>
@@ -347,7 +339,7 @@ export default function NewProject(): JSX.Element {
                   whileHover={isBusy ? undefined : { y: -2 }}
                   whileTap={isBusy ? undefined : { scale: 0.98 }}
                 >
-                  {joinStatus === "loading" ? "Joining…" : "Enter"}
+                  {joinStatus === "loading" ? "Joining..." : "Enter"}
                 </motion.button>
               </div>
 

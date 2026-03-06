@@ -29,9 +29,9 @@ function App(): JSX.Element {
       <Route path="/projects/:projectId/role-options" element={<RoleOptionsPage />} />
 
       {/* Role included in URL for all other project pages */}
-      <Route path="/projects/:projectId/:role/dashboard" element={<DashboardPage />} />
-      <Route path="/projects/:projectId/:role/product-owner" element={<ProductOwnerPage />} />
-      <Route path="/projects/:projectId/:role/scrum-facilitator" element={<ScrumFacilitatorPage />} />
+      <Route path="/projects/:projectId/:role/developer-dashboard" element={<DashboardPage />} />
+      <Route path="/projects/:projectId/:role/product-owner-dashboard" element={<ProductOwnerPage />} />
+      <Route path="/projects/:projectId/:role/scrum-facilitator-dashboard" element={<ScrumFacilitatorPage />} />
       <Route path="/projects/:projectId/:role/to-do/planning" element={<ToDoPage />} />
       <Route path="/projects/:projectId/:role/communication" element={<CommunicationPage />} />
       <Route path="/projects/:projectId/:role/progress" element={<ProgressPage />} />
