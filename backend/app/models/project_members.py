@@ -21,8 +21,8 @@ class ProjectMember(Base):
         index=True,
     )
 
-    role = Column(String, nullable=False, default="Member")
-
+    role = Column(String, nullable=False, default="Developer")
+    
     __table_args__ = (
         UniqueConstraint("project_id", "user_id", name="uq_project_members_project_user"),
     )

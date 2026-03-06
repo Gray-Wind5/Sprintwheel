@@ -3,10 +3,9 @@ import Banner from "../Banner";
 import logo from "../assets/logo.png";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, me, register } from "../api/auth";
+import { login, me, register, googleLogin } from "../api/auth";
 import { GoogleLogin } from "@react-oauth/google";
-import { googleLogin } from "../api/auth";
-import { listProjects } from "../api/projects";
+import { listProjects, type ProjectRole } from "../api/projects";
 
 function roleToUrlKey(role: string): string {
   switch (role) {
@@ -15,32 +14,31 @@ function roleToUrlKey(role: string): string {
     case "Scrum Facilitator":
       return "scrum-facilitator";
     case "Developer":
-      return "developer";
-    case "Member":
-      return "member";
     default:
-      return "member";
+      return "developer";
   }
 }
 
 function roleKeyToLanding(roleKey: string): string {
   switch (roleKey) {
     case "product-owner":
-      return "product-owner";
+      return "product-owner-dashboard";
     case "scrum-facilitator":
-      return "scrum-facilitator";
+      return "scrum-facilitator-dashboard";
     case "developer":
-    case "member":
     default:
-      return "dashboard";
+      return "developer-dashboard";
   }
 }
 
-function isValidPrimaryRole(role: string | null | undefined): role is
-  | "Product Owner"
-  | "Scrum Facilitator"
-  | "Developer" {
-  return role === "Product Owner" || role === "Scrum Facilitator" || role === "Developer";
+function isValidPrimaryRole(
+  role: string | null | undefined
+): role is ProjectRole {
+  return (
+    role === "Product Owner" ||
+    role === "Scrum Facilitator" ||
+    role === "Developer"
+  );
 }
 
 function LoginPage(): JSX.Element {
@@ -62,13 +60,10 @@ function LoginPage(): JSX.Element {
       return;
     }
 
-    const first = projects[0] as any;
-    const projectId: string = first.id;
+    const first = projects[0];
+    const projectId = first.id;
+    const roleFromApi = first.role;
 
-    // IMPORTANT: This only works if listProjects includes role for the current user per project.
-    const roleFromApi: string | undefined = first.role ?? first.user_role;
-
-    // If role isn't one of the 3 primary roles, force role selection for that project
     if (!isValidPrimaryRole(roleFromApi)) {
       navigate(`/projects/${projectId}/role-options`, { replace: true });
       return;
@@ -95,9 +90,9 @@ function LoginPage(): JSX.Element {
 
       const u = await me(tok.access_token);
       localStorage.setItem("user", JSON.stringify(u));
+      setUser(u);
 
       setStatus(mode === "register" ? "Account created & logged in!" : "Logged in!");
-
       await routeAfterAuth();
     } catch (err: any) {
       setStatus(err?.message ?? "Request failed");
@@ -107,7 +102,6 @@ function LoginPage(): JSX.Element {
   return (
     <main className="app-background">
       <div className="hero">
-        {/* top */}
         <div className="hero-top">
           <img className="logo" src={logo} alt="SprintWheel logo" />
 
@@ -117,7 +111,6 @@ function LoginPage(): JSX.Element {
           </p>
         </div>
 
-        {/* center */}
         <div className="hero-center">
           <div className="login-card">
             <h2 className="card-title">
@@ -149,7 +142,6 @@ function LoginPage(): JSX.Element {
                 {mode === "login" ? "Sign in" : "Create account"}
               </button>
 
-              {/* Divider */}
               <div
                 style={{
                   display: "flex",
@@ -166,7 +158,6 @@ function LoginPage(): JSX.Element {
                 <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.25)" }} />
               </div>
 
-              {/* Google Button */}
               {mode === "login" && (
                 <div style={{ display: "flex", justifyContent: "center", transform: "scale(1.15)" }}>
                   <GoogleLogin
@@ -180,6 +171,7 @@ function LoginPage(): JSX.Element {
 
                         const u = await me(token.access_token);
                         localStorage.setItem("user", JSON.stringify(u));
+                        setUser(u);
 
                         await routeAfterAuth();
                       } catch (err: any) {
@@ -212,7 +204,6 @@ function LoginPage(): JSX.Element {
           </div>
         </div>
 
-        {/* bottom */}
         <div className="footer">
           <h1 className="brand">SprintWheel</h1>
           <p className="byline">Presented by: Stack Overthrow</p>
