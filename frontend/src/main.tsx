@@ -8,7 +8,7 @@ import "./index.css";
 const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 if (!clientId) {
-  console.error("Missing VITE_GOOGLE_CLIENT_ID. Check frontend/.env");
+  throw new Error("Missing VITE_GOOGLE_CLIENT_ID. Check frontend/.env");
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
