@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "r
 
 export default function ProgressPage(): JSX.Element {
 
-    const containerStyle: CSSProperties = { color: "black", padding: 40 };
+    const containerStyle: CSSProperties = { padding: 40 };
 
     // data to hold space for test graph
     const testData = [
@@ -20,7 +20,6 @@ export default function ProgressPage(): JSX.Element {
             <p>This is the Progress page.</p>
             <p> This is where the Burndown Chart, Velocity Chart, & Sprint Report will live</p>
 
-            <img src="/sprint_burndown_chart.png" alt="Sprint Burndown Chart showing task completion over time" style={{ maxWidth: "100%", height: "auto", marginTop: 20 }} />
 
             {/* Placeholder Recharts graph*/}
             <div style={{ marginTop: 20}}>

@@ -178,7 +178,7 @@ export default function ToDoPage(): JSX.Element {
 
   return (
     <div style={pageStyle}>
-      <h1 style={{ marginBottom: 30 }}>SprintWheel Task Board</h1>
+      <h1 style={{ marginBottom: 30 , textAlign: "center" }}>Task Board</h1>
 
       <DndContext onDragEnd={handleDragEnd}>
         <div style={boardStyle}>
@@ -234,7 +234,7 @@ function Column({ id, title, tasks, color, input, setInput, createTask, deleteTa
 
   return (
     <div ref={setNodeRef} style={{ ...columnStyle, background: color }}>
-      <h3 style={{ color: "#111" }}>{title}</h3>
+      <h3 style={{ color: "#rgba(255,255,255,0.04)" }}>{title}</h3>
 
       <div style={addTaskContainer}>
         <input
