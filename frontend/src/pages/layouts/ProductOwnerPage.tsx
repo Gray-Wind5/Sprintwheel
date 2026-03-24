@@ -13,6 +13,13 @@ type User = {
   email: string;
   role: string;
 };
+type BacklogStory = {
+  id: string;
+  title: string;
+  description: string | null;
+  points: number | null;
+  isDone: boolean;
+};
 
 const styles: Record<string, CSSProperties> = {
   main: {
@@ -125,6 +132,7 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     minHeight: 280,
+    cursor: "pointer",
   },
 
   cardTitle: {
@@ -159,7 +167,7 @@ const styles: Record<string, CSSProperties> = {
   },
 
   overlay: {
-    position: "absolute",
+    position: "fixed",
     inset: 0,
     zIndex: 5,
     display: "grid",
@@ -219,6 +227,55 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
   },
+  backlogPreviewWrap: {
+  marginTop: "auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+},
+
+backlogPreviewItem: {
+  borderRadius: 14,
+  padding: 12,
+  background: "rgba(15,23,42,0.7)",
+  border: "1px solid rgba(255,255,255,0.08)",
+},
+
+backlogPreviewTopRow: {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 6,
+},
+
+backlogPreviewIndex: {
+  fontSize: 12,
+  fontWeight: 700,
+  color: "rgba(255,255,255,0.55)",
+},
+
+backlogPreviewStatus: {
+  fontSize: 12,
+  color: "rgba(255,255,255,0.7)",
+},
+
+backlogPreviewTitle: {
+  margin: 0,
+  fontSize: 14,
+  fontWeight: 600,
+  color: "white",
+},
+
+backlogPreviewMeta: {
+  marginTop: 6,
+  fontSize: 12,
+  color: "rgba(255,255,255,0.6)",
+},
+
+backlogEmpty: {
+  fontSize: 14,
+  color: "rgba(255,255,255,0.6)",
+},
 };
 
 export default function ProductOwnerPage(): JSX.Element {
@@ -235,7 +292,10 @@ export default function ProductOwnerPage(): JSX.Element {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [projectError, setProjectError] = useState("");
   const [revealed, setRevealed] = useState(false);
-
+  const [backlogStories, setBacklogStories] = useState<BacklogStory[]>([]);
+  const [backlogLoading, setBacklogLoading] = useState(false);
+  const [backlogError, setBacklogError] = useState("");
+  
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -255,6 +315,35 @@ export default function ProductOwnerPage(): JSX.Element {
         navigate("/login", { replace: true });
       });
   }, [navigate]);
+
+  useEffect(() => {
+  if (!activeProjectId) return;
+
+  setBacklogLoading(true);
+  setBacklogError("");
+
+  fetch(`http://127.0.0.1:8000/stories/backlog?project_id=${activeProjectId}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`
+    }
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      return res.json();
+    })
+    .then((data: BacklogStory[]) => {
+      setBacklogStories(data);
+      setBacklogLoading(false);
+    })
+    .catch((err) => {
+      console.error("Error fetching backlog preview:", err);
+      setBacklogStories([]);
+      setBacklogError("Unable to load backlog preview.");
+      setBacklogLoading(false);
+    });
+}, [activeProjectId]);
 
   useEffect(() => {
     if (!user) return;
@@ -283,6 +372,7 @@ export default function ProductOwnerPage(): JSX.Element {
   const activeProject = useMemo(() => {
     return projects.find((project) => project.id === activeProjectId) ?? null;
   }, [projects, activeProjectId]);
+  const previewStories = backlogStories.slice(0, 3);
 
   return (
     <SidebarLayout>
@@ -385,20 +475,47 @@ export default function ProductOwnerPage(): JSX.Element {
                 </div>
               </div>
 
-              <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Product Backlog</h2>
-                <p style={styles.cardDescription}>
-                  Manage user stories, prioritize work, and organize sprint
-                  assignments with a backlog-driven planning view.
-                </p>
-                <div style={styles.imageWrap}>
-                  <img
-                    src="/product_backlog_framework.jpeg"
-                    alt="Product backlog preview"
-                    style={styles.image}
-                  />
-                </div>
-              </div>
+              <div
+  style={styles.card}
+ onClick={() => {
+  if (activeProjectId && role) {
+    navigate(`/projects/${activeProjectId}/${role}/product-backlog`);
+  }
+}}
+>
+  <h2 style={styles.cardTitle}>Product Backlog</h2>
+  <p style={styles.cardDescription}>
+    Manage user stories, prioritize work, and organize sprint
+    assignments with a backlog-driven planning view.
+  </p>
+
+  <div style={styles.backlogPreviewWrap}>
+    {backlogLoading ? (
+      <p style={styles.backlogEmpty}>Loading...</p>
+    ) : backlogError ? (
+      <p style={styles.backlogEmpty}>{backlogError}</p>
+    ) : previewStories.length === 0 ? (
+      <p style={styles.backlogEmpty}>No backlog items yet.</p>
+    ) : (
+      previewStories.map((story, index) => (
+        <div key={story.id} style={styles.backlogPreviewItem}>
+          <div style={styles.backlogPreviewTopRow}>
+            <span style={styles.backlogPreviewIndex}>#{index + 1}</span>
+            <span style={styles.backlogPreviewStatus}>
+              {story.isDone ? "Done" : "Open"}
+            </span>
+          </div>
+
+          <p style={styles.backlogPreviewTitle}>{story.title}</p>
+
+          <p style={styles.backlogPreviewMeta}>
+            {story.points ?? 0} pts
+          </p>
+        </div>
+      ))
+    )}
+  </div>
+</div>
             </section>
 
             <section style={styles.bottomGrid}>

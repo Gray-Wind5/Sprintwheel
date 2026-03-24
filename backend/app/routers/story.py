@@ -125,7 +125,7 @@ def list_stories(
 
 @router.get("/backlog", response_model=list[StoryOut])
 def get_product_backlog(
-    project_id: str,
+    project_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
