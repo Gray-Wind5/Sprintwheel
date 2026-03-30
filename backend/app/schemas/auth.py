@@ -21,3 +21,11 @@ class UserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+
+class ChangeNameIn(BaseModel):
+    current_password: str
+    new_name: str

@@ -14,6 +14,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from pydantic import BaseModel
 from app.core.config import GOOGLE_CLIENT_ID
+from app.schemas.auth import ChangePasswordIn, ChangeNameIn
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,6 +40,41 @@ def register(data: RegisterIn, db: Session = Depends(get_db)):
     db.refresh(user)
     return user
 
+
+@router.put("/change-password")
+def change_password(
+    data: ChangePasswordIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    current_user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    db.refresh(current_user)
+
+    return {"message": "Password updated successfully"}
+
+@router.put("/change-name", response_model=UserOut)
+def change_name(
+    data: ChangeNameIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    new_name = data.new_name.strip()
+
+    if not new_name:
+        raise HTTPException(status_code=400, detail="New name cannot be empty")
+
+    current_user.name = new_name
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user
 
 @router.post("/login", response_model=TokenOut)
 def login(data: LoginIn, db: Session = Depends(get_db)):
