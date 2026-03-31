@@ -8,8 +8,9 @@ import { useTheme } from "../pages/ThemeContext";
 const styles: Record<string, CSSProperties> = {
   shell: {
     display: "flex",
-    minHeight: "100vh",
+    height: "100vh",
     width: "100%",
+    overflow: "hidden",
   },
   sidebar: {
     display: "flex",
@@ -18,6 +19,8 @@ const styles: Record<string, CSSProperties> = {
     transition: "width 0.2s ease",
     overflowY: "auto",
     overflowX: "hidden",
+    height: "100vh",
+    flexShrink: 0,
   },
   sidebarTop: {
     display: "flex",
@@ -173,7 +176,9 @@ const styles: Record<string, CSSProperties> = {
   main: {
     flex: 1,
     padding: 24,
-    overflow: "auto",
+    overflowY: "auto",
+    height: "100vh",
+    minWidth: 0,
   },
   modalOverlay: {
     position: "fixed",
