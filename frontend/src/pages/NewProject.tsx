@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createProject, joinProject } from "../api/projects";
+import { useTheme } from "../pages/ThemeContext";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -10,8 +11,6 @@ const styles: Record<string, React.CSSProperties> = {
   shell: {
     minHeight: "100vh",
     width: "100%",
-    background: "#0b0f17",
-    color: "white",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -19,12 +18,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   card: {
     width: "min(880px, 96vw)",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 24,
     padding: 28,
     boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-    position: "relative", // added this for adding close button
+    position: "relative",
   },
   header: {
     marginBottom: 18,
@@ -37,7 +34,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   subtitle: {
     margin: "10px 0 0 0",
-    opacity: 0.82,
     fontSize: 15,
     lineHeight: 1.5,
   },
@@ -50,8 +46,6 @@ const styles: Record<string, React.CSSProperties> = {
   panel: {
     borderRadius: 20,
     padding: 18,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
   },
   panelHeader: {
     display: "flex",
@@ -71,8 +65,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 999,
     display: "grid",
     placeItems: "center",
-    background: "rgba(255,255,255,0.10)",
-    border: "1px solid rgba(255,255,255,0.14)",
     fontSize: 20,
     flexShrink: 0,
   },
@@ -84,7 +76,6 @@ const styles: Record<string, React.CSSProperties> = {
   panelDesc: {
     margin: "6px 0 0 0",
     fontSize: 13,
-    opacity: 0.8,
   },
   formRow: {
     display: "grid",
@@ -99,7 +90,6 @@ const styles: Record<string, React.CSSProperties> = {
   label: {
     fontSize: 14,
     fontWeight: 700,
-    opacity: 0.92,
   },
   input: {
     width: "100%",
@@ -107,9 +97,6 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     borderRadius: 12,
     padding: "12px 12px",
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    color: "white",
     outline: "none",
     fontSize: 14,
   },
@@ -125,9 +112,6 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     borderRadius: 999,
     padding: "12px 16px",
-    background: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    color: "white",
     cursor: "pointer",
     fontWeight: 800,
     fontSize: 14,
@@ -140,19 +124,16 @@ const styles: Record<string, React.CSSProperties> = {
   hint: {
     marginTop: 4,
     fontSize: 12,
-    opacity: 0.7,
     lineHeight: 1.5,
   },
   error: {
     marginTop: 4,
     fontSize: 12,
-    color: "#ffb4b4",
     lineHeight: 1.5,
   },
   success: {
     marginTop: 4,
     fontSize: 12,
-    color: "#b9ffcc",
     lineHeight: 1.5,
   },
   closeButton: {
@@ -161,20 +142,19 @@ const styles: Record<string, React.CSSProperties> = {
     right: 16,
     borderRadius: 999,
     padding: "12px 16px",
-    background: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    color: "white",
     cursor: "pointer",
     fontWeight: 800,
     fontSize: 16,
     display: "grid",
     placeItems: "center",
     whiteSpace: "nowrap",
-  },  
+  },
 };
 
 export default function NewProject(): React.JSX.Element {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const [projectName, setProjectName] = useState("");
   const [sprintDurationInput, setSprintDurationInput] = useState("");
@@ -192,7 +172,6 @@ export default function NewProject(): React.JSX.Element {
 
   const trimmedProjectName = projectName.trim();
   const trimmedSprint = sprintDurationInput.trim();
-  const trimmedJoinId = joinProjectId.trim();
 
   const projectNameEmpty =
     createStatus === "error" && trimmedProjectName.length === 0;
@@ -299,40 +278,86 @@ export default function NewProject(): React.JSX.Element {
   }
 
   return (
-    <div style={styles.shell}>
+    <div
+      style={{
+        ...styles.shell,
+        background: isDark ? "#0b0f17" : "#f8fafc",
+        color: isDark ? "white" : "#111827",
+      }}
+    >
       <motion.div
-        style={styles.card}
+        style={{
+          ...styles.card,
+          background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff",
+          border: isDark
+            ? "1px solid rgba(255,255,255,0.10)"
+            : "1px solid rgba(0,0,0,0.08)",
+        }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
       >
-
         <motion.button
           type="button"
-          style={styles.closeButton}
+          style={{
+            ...styles.closeButton,
+            background: isDark ? "rgba(255,255,255,0.12)" : "#f3f4f6",
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.18)"
+              : "1px solid rgba(0,0,0,0.08)",
+            color: isDark ? "white" : "#111827",
+          }}
           onClick={() => navigate(-1)}
           aria-label="Close"
-          whileHover={{ y: -2}}  // slight lift on hover
-          whileTap={{ scale: 0.98}} // press effect
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.98 }}
         >
           ×
         </motion.button>
 
         <div style={styles.header}>
           <h1 style={styles.title}>Projects</h1>
-          <p style={styles.subtitle}>
+          <p
+            style={{
+              ...styles.subtitle,
+              color: isDark ? "rgba(255,255,255,0.82)" : "#6b7280",
+            }}
+          >
             Create a new project, or join an existing one with its Project ID.
           </p>
         </div>
 
         <div style={styles.grid}>
-          <div style={styles.panel}>
+          <div
+            style={{
+              ...styles.panel,
+              background: isDark ? "rgba(255,255,255,0.06)" : "#f8fafc",
+              border: isDark
+                ? "1px solid rgba(255,255,255,0.12)"
+                : "1px solid rgba(0,0,0,0.08)",
+            }}
+          >
             <div style={styles.panelHeader}>
               <div style={styles.panelTitleWrap}>
-                <span style={styles.icon}>✨</span>
+                <span
+                  style={{
+                    ...styles.icon,
+                    background: isDark ? "rgba(255,255,255,0.10)" : "#e5e7eb",
+                    border: isDark
+                      ? "1px solid rgba(255,255,255,0.14)"
+                      : "1px solid rgba(0,0,0,0.08)",
+                  }}
+                >
+                  ✨
+                </span>
                 <div>
                   <h2 style={styles.panelTitle}>Create New Project</h2>
-                  <p style={styles.panelDesc}>
+                  <p
+                    style={{
+                      ...styles.panelDesc,
+                      color: isDark ? "rgba(255,255,255,0.8)" : "#6b7280",
+                    }}
+                  >
                     Start a new project and continue to role setup.
                   </p>
                 </div>
@@ -348,6 +373,11 @@ export default function NewProject(): React.JSX.Element {
                   id="project-name"
                   style={{
                     ...styles.input,
+                    background: isDark ? "rgba(255,255,255,0.08)" : "#ffffff",
+                    border: isDark
+                      ? "1px solid rgba(255,255,255,0.14)"
+                      : "1px solid rgba(0,0,0,0.10)",
+                    color: isDark ? "white" : "#111827",
                     ...(projectNameEmpty ? styles.inputError : {}),
                   }}
                   value={projectName}
@@ -355,7 +385,14 @@ export default function NewProject(): React.JSX.Element {
                   disabled={isBusy}
                 />
                 {projectNameEmpty && (
-                  <div style={styles.error}>Project name cannot be empty.</div>
+                  <div
+                    style={{
+                      ...styles.error,
+                      color: isDark ? "#ffb4b4" : "#b91c1c",
+                    }}
+                  >
+                    Project name cannot be empty.
+                  </div>
                 )}
               </div>
 
@@ -367,6 +404,11 @@ export default function NewProject(): React.JSX.Element {
                   id="sprint-length"
                   style={{
                     ...styles.input,
+                    background: isDark ? "rgba(255,255,255,0.08)" : "#ffffff",
+                    border: isDark
+                      ? "1px solid rgba(255,255,255,0.14)"
+                      : "1px solid rgba(0,0,0,0.10)",
+                    color: isDark ? "white" : "#111827",
                     ...((sprintEmpty || sprintInvalid) ? styles.inputError : {}),
                   }}
                   value={sprintDurationInput}
@@ -374,10 +416,22 @@ export default function NewProject(): React.JSX.Element {
                   disabled={isBusy}
                 />
                 {sprintEmpty && (
-                  <div style={styles.error}>Sprint length cannot be empty.</div>
+                  <div
+                    style={{
+                      ...styles.error,
+                      color: isDark ? "#ffb4b4" : "#b91c1c",
+                    }}
+                  >
+                    Sprint length cannot be empty.
+                  </div>
                 )}
                 {sprintInvalid && (
-                  <div style={styles.error}>
+                  <div
+                    style={{
+                      ...styles.error,
+                      color: isDark ? "#ffb4b4" : "#b91c1c",
+                    }}
+                  >
                     Please enter a valid whole number for sprint length.
                   </div>
                 )}
@@ -389,6 +443,11 @@ export default function NewProject(): React.JSX.Element {
                   ...styles.button,
                   ...(isBusy ? styles.buttonDisabled : {}),
                   width: "fit-content",
+                  background: isDark ? "rgba(255,255,255,0.12)" : "#f3f4f6",
+                  border: isDark
+                    ? "1px solid rgba(255,255,255,0.18)"
+                    : "1px solid rgba(0,0,0,0.08)",
+                  color: isDark ? "white" : "#111827",
                 }}
                 onClick={handleCreateProject}
                 disabled={isBusy}
@@ -399,31 +458,73 @@ export default function NewProject(): React.JSX.Element {
               </motion.button>
 
               {createStatus === "success" && (
-                <div style={styles.success}>{createMsg}</div>
+                <div
+                  style={{
+                    ...styles.success,
+                    color: isDark ? "#b9ffcc" : "#166534",
+                  }}
+                >
+                  {createMsg}
+                </div>
               )}
 
               {createStatus === "error" &&
                 !projectNameEmpty &&
                 !sprintEmpty &&
                 !sprintInvalid && (
-                  <div style={styles.error}>{createMsg}</div>
+                  <div
+                    style={{
+                      ...styles.error,
+                      color: isDark ? "#ffb4b4" : "#b91c1c",
+                    }}
+                  >
+                    {createMsg}
+                  </div>
                 )}
 
               {createStatus === "idle" && (
-                <div style={styles.hint}>
+                <div
+                  style={{
+                    ...styles.hint,
+                    color: isDark ? "rgba(255,255,255,0.7)" : "#6b7280",
+                  }}
+                >
                   Enter a project name and sprint length to create your project.
                 </div>
               )}
             </div>
           </div>
 
-          <div style={styles.panel}>
+          <div
+            style={{
+              ...styles.panel,
+              background: isDark ? "rgba(255,255,255,0.06)" : "#f8fafc",
+              border: isDark
+                ? "1px solid rgba(255,255,255,0.12)"
+                : "1px solid rgba(0,0,0,0.08)",
+            }}
+          >
             <div style={styles.panelHeader}>
               <div style={styles.panelTitleWrap}>
-                <span style={styles.icon}>🔗</span>
+                <span
+                  style={{
+                    ...styles.icon,
+                    background: isDark ? "rgba(255,255,255,0.10)" : "#e5e7eb",
+                    border: isDark
+                      ? "1px solid rgba(255,255,255,0.14)"
+                      : "1px solid rgba(0,0,0,0.08)",
+                  }}
+                >
+                  🔗
+                </span>
                 <div>
                   <h2 style={styles.panelTitle}>Join Project</h2>
-                  <p style={styles.panelDesc}>
+                  <p
+                    style={{
+                      ...styles.panelDesc,
+                      color: isDark ? "rgba(255,255,255,0.8)" : "#6b7280",
+                    }}
+                  >
                     Enter a Project ID to join an existing project.
                   </p>
                 </div>
@@ -441,6 +542,11 @@ export default function NewProject(): React.JSX.Element {
                     id="join-project-id"
                     style={{
                       ...styles.input,
+                      background: isDark ? "rgba(255,255,255,0.08)" : "#ffffff",
+                      border: isDark
+                        ? "1px solid rgba(255,255,255,0.14)"
+                        : "1px solid rgba(0,0,0,0.10)",
+                      color: isDark ? "white" : "#111827",
                       ...(joinInputError ? styles.inputError : {}),
                     }}
                     value={joinProjectId}
@@ -454,6 +560,11 @@ export default function NewProject(): React.JSX.Element {
                     style={{
                       ...styles.button,
                       ...(isBusy ? styles.buttonDisabled : {}),
+                      background: isDark ? "rgba(255,255,255,0.12)" : "#f3f4f6",
+                      border: isDark
+                        ? "1px solid rgba(255,255,255,0.18)"
+                        : "1px solid rgba(0,0,0,0.08)",
+                      color: isDark ? "white" : "#111827",
                     }}
                     onClick={handleJoinProject}
                     disabled={isBusy}
@@ -466,15 +577,34 @@ export default function NewProject(): React.JSX.Element {
               </div>
 
               {joinStatus === "error" && (
-                <div style={styles.error}>{joinMsg}</div>
+                <div
+                  style={{
+                    ...styles.error,
+                    color: isDark ? "#ffb4b4" : "#b91c1c",
+                  }}
+                >
+                  {joinMsg}
+                </div>
               )}
 
               {joinStatus === "success" && (
-                <div style={styles.success}>{joinMsg}</div>
+                <div
+                  style={{
+                    ...styles.success,
+                    color: isDark ? "#b9ffcc" : "#166534",
+                  }}
+                >
+                  {joinMsg}
+                </div>
               )}
 
               {joinStatus === "idle" && (
-                <div style={styles.hint}>
+                <div
+                  style={{
+                    ...styles.hint,
+                    color: isDark ? "rgba(255,255,255,0.7)" : "#6b7280",
+                  }}
+                >
                   Press <b>Enter</b> to submit quickly.
                 </div>
               )}

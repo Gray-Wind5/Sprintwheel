@@ -1,4 +1,6 @@
 import type { CSSProperties, JSX } from "react";
+import SidebarLayout from "../components/SidebarLayout";
+import { useTheme } from "./ThemeContext";
 
 const styles: Record<string, CSSProperties> = {
   page: {
@@ -26,7 +28,7 @@ const styles: Record<string, CSSProperties> = {
   eyebrow: {
     fontSize: "0.9rem",
     fontWeight: 700,
-    color: "#a78bfa", // soft purple
+    color: "#a78bfa",
     marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: "0.04em",
@@ -184,84 +186,132 @@ const styles: Record<string, CSSProperties> = {
 };
 
 export default function ToDoPage(): JSX.Element {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <section style={styles.hero}>
-          <p style={styles.eyebrow}>Learn Scrum</p>
-          <h1 style={styles.title}>Scrum.Edu</h1>
-          <p style={styles.subtitle}>
-            Learn Scrum through structured modules designed for real-world
-            application. Progress at your own pace and build confidence in agile workflows.
-          </p>
+    <SidebarLayout>
+      <div
+        style={{
+          ...styles.page,
+          background: isDark
+            ? styles.page.background
+            : "#f8fafc",
+          color: isDark ? "#f9fafb" : "#111827",
+        }}
+      >
+        <div style={styles.container}>
+          <section
+            style={{
+              ...styles.hero,
+              background: isDark
+                ? styles.hero.background
+                : "#ffffff",
+              border: isDark
+                ? styles.hero.border
+                : "1px solid rgba(17,24,39,0.08)",
+            }}
+          >
+            <p style={styles.eyebrow}>Learn Scrum</p>
+            <h1 style={styles.title}>Scrum.Edu</h1>
+            <p
+              style={{
+                ...styles.subtitle,
+                color: isDark ? "#d1d5db" : "#4b5563",
+              }}
+            >
+              Learn Scrum through structured modules designed for real-world
+              application. Progress at your own pace and build confidence in agile workflows.
+            </p>
 
-          <div style={styles.heroRow}>
-            <button style={styles.primaryButton}>Continue Learning</button>
-            <button style={styles.secondaryButton}>Browse Topics</button>
-          </div>
-        </section>
+            <div style={styles.heroRow}>
+              <button style={styles.primaryButton}>Continue Learning</button>
+              <button style={styles.secondaryButton}>Browse Topics</button>
+            </div>
+          </section>
 
-        <section style={styles.progressCard}>
-          <div style={styles.progressTop}>
-            <h2 style={styles.sectionTitle}>Your progress</h2>
-            <span style={styles.progressText}>35% complete</span>
-          </div>
-
-          <div style={styles.progressBarWrap}>
-            <div style={styles.progressBar}></div>
-          </div>
-        </section>
-
-        <section>
-          <h2 style={styles.sectionTitle}>Topics</h2>
-
-          <div style={styles.grid}>
-            <div style={styles.card}>
-              <div style={styles.iconCircle}>📘</div>
-              <h3 style={styles.cardTitle}>Scrum Guide</h3>
-              <p style={styles.cardText}>
-                Learn the core framework and principles of Scrum.
-              </p>
-              <div style={styles.pillRow}>
-                <span style={styles.pill}>Beginner</span>
-                <span style={styles.pill}>Core</span>
-              </div>
-              <button style={styles.cardButton}>Start</button>
+          <section
+            style={{
+              ...styles.progressCard,
+              background: isDark
+                ? styles.progressCard.background
+                : "#ffffff",
+              border: isDark
+                ? styles.progressCard.border
+                : "1px solid rgba(17,24,39,0.08)",
+            }}
+          >
+            <div style={styles.progressTop}>
+              <h2 style={styles.sectionTitle}>Your progress</h2>
+              <span
+                style={{
+                  ...styles.progressText,
+                  color: isDark ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                35% complete
+              </span>
             </div>
 
-            <div style={styles.card}>
-              <div style={styles.iconCircle}>👥</div>
-              <h3 style={styles.cardTitle}>Scrum Roles</h3>
-              <p style={styles.cardText}>
-                Understand each role and its responsibilities.
-              </p>
-              <button style={styles.cardButton}>Learn</button>
+            <div style={styles.progressBarWrap}>
+              <div style={styles.progressBar}></div>
             </div>
+          </section>
 
-            <div style={styles.card}>
-              <div style={styles.iconCircle}>📅</div>
-              <h3 style={styles.cardTitle}>Scrum Events</h3>
-              <p style={styles.cardText}>
-                Explore key Scrum ceremonies and workflows.
-              </p>
-              <button style={styles.cardButton}>Explore</button>
-            </div>
+          <section>
+            <h2 style={styles.sectionTitle}>Topics</h2>
 
-            <div style={styles.card}>
-              <div style={styles.iconCircle}>📦</div>
-              <h3 style={styles.cardTitle}>Scrum Artifacts</h3>
-              <p style={styles.cardText}>
-                Learn how progress and work are tracked in Scrum.
-              </p>
-              <button style={styles.cardButton}>View</button>
+            <div style={styles.grid}>
+              {["📘", "👥", "📅", "📦"].map((icon, i) => (
+                <div
+                  key={i}
+                  style={{
+                    ...styles.card,
+                    background: isDark
+                      ? styles.card.background
+                      : "#ffffff",
+                    border: isDark
+                      ? styles.card.border
+                      : "1px solid rgba(17,24,39,0.08)",
+                  }}
+                >
+                  <div style={styles.iconCircle}>{icon}</div>
+                  <h3 style={styles.cardTitle}>
+                    {["Scrum Guide", "Scrum Roles", "Scrum Events", "Scrum Artifacts"][i]}
+                  </h3>
+                  <p
+                    style={{
+                      ...styles.cardText,
+                      color: isDark ? "#9ca3af" : "#4b5563",
+                    }}
+                  >
+                    {
+                      [
+                        "Learn the core framework and principles of Scrum.",
+                        "Understand each role and its responsibilities.",
+                        "Explore key Scrum ceremonies and workflows.",
+                        "Learn how progress and work are tracked in Scrum.",
+                      ][i]
+                    }
+                  </p>
+                  <button style={styles.cardButton}>
+                    {["Start", "Learn", "Explore", "View"][i]}
+                  </button>
+                </div>
+              ))}
             </div>
+          </section>
+
+          <div
+            style={{
+              ...styles.footerNote,
+              color: isDark ? "#6b7280" : "#9ca3af",
+            }}
+          >
+            Content in progress — expected by Sprint #5
           </div>
-        </section>
-
-        <div style={styles.footerNote}>
-          Content in progress — expected by Sprint #5
         </div>
       </div>
-    </div>
+    </SidebarLayout>
   );
 }

@@ -3,21 +3,18 @@ import type { CSSProperties, ReactNode, JSX } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { listProjects, type Project } from "../api/projects";
 import NotificationBell from "./NotificationBell";
+import { useTheme } from "../pages/ThemeContext";
 
 const styles: Record<string, CSSProperties> = {
   shell: {
     display: "flex",
     minHeight: "100vh",
     width: "100%",
-    background: "#0b0f17",
-    color: "white",
   },
   sidebar: {
     display: "flex",
     flexDirection: "column",
     padding: 20,
-    background: "#0a0e16",
-    borderRight: "1px solid rgba(255,255,255,0.08)",
     transition: "width 0.2s ease",
     overflowY: "auto",
     overflowX: "hidden",
@@ -47,9 +44,6 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    color: "white",
     borderRadius: 12,
     padding: "13px 14px",
     cursor: "pointer",
@@ -79,7 +73,6 @@ const styles: Record<string, CSSProperties> = {
     margin: 0,
     fontSize: 11,
     fontWeight: 700,
-    opacity: 0.7,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -92,9 +85,6 @@ const styles: Record<string, CSSProperties> = {
     textOverflow: "ellipsis",
   },
   collapseBtn: {
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    color: "white",
     borderRadius: 8,
     padding: "9px 13px",
     cursor: "pointer",
@@ -113,14 +103,7 @@ const styles: Record<string, CSSProperties> = {
     padding: "14px 16px",
     borderRadius: 12,
     cursor: "pointer",
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid transparent",
-    color: "white",
     userSelect: "none",
-  },
-  navItemActive: {
-    background: "rgba(255,255,255,0.14)",
-    border: "1px solid rgba(255,255,255,0.20)",
   },
   icon: {
     fontSize: 22,
@@ -139,12 +122,9 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: "column",
     gap: 10,
     paddingTop: 18,
-    borderTop: "1px solid rgba(255,255,255,0.08)",
     flex: 1,
   },
   selectorBox: {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
     padding: "12px 14px",
     display: "flex",
@@ -154,24 +134,17 @@ const styles: Record<string, CSSProperties> = {
   selectorHeader: {
     fontSize: 12,
     fontWeight: 700,
-    opacity: 0.75,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   select: {
     width: "100%",
-    background: "#2a2f3a",
-    border: "1px solid rgba(255,255,255,0.15)",
-    color: "white",
     borderRadius: 10,
     padding: "12px 14px",
     fontSize: 14,
     outline: "none",
   },
   bottomButton: {
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    color: "white",
     borderRadius: 12,
     padding: "13px 16px",
     cursor: "pointer",
@@ -180,15 +153,12 @@ const styles: Record<string, CSSProperties> = {
     textAlign: "left",
   },
   projectBox: {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
     padding: "12px 14px",
     fontSize: 12,
     wordBreak: "break-all",
     opacity: 0.95,
     cursor: "pointer",
-    color: "white",
     textAlign: "left",
   },
   projectIdTitle: {
@@ -199,7 +169,6 @@ const styles: Record<string, CSSProperties> = {
   copyHint: {
     marginTop: 6,
     fontSize: 11,
-    opacity: 0.7,
   },
   main: {
     flex: 1,
@@ -209,7 +178,6 @@ const styles: Record<string, CSSProperties> = {
   modalOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.72)",
     backdropFilter: "blur(8px)",
     WebkitBackdropFilter: "blur(8px)",
     display: "flex",
@@ -221,8 +189,6 @@ const styles: Record<string, CSSProperties> = {
   modalCard: {
     width: "min(720px, 96vw)",
     minHeight: "min(520px, 88vh)",
-    background: "linear-gradient(180deg, #111827 0%, #0f172a 100%)",
-    border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 24,
     padding: 28,
     boxShadow: "0 25px 80px rgba(0,0,0,0.45)",
@@ -234,9 +200,6 @@ const styles: Record<string, CSSProperties> = {
     position: "absolute",
     top: 18,
     right: 18,
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.15)",
-    color: "white",
     borderRadius: 10,
     padding: "8px 12px",
     cursor: "pointer",
@@ -263,11 +226,9 @@ const styles: Record<string, CSSProperties> = {
   },
   modalHeaderText: { minWidth: 0 },
   modalTitle: { margin: 0, fontSize: 28, fontWeight: 700 },
-  modalSubtitle: { margin: "8px 0 0 0", fontSize: 15, color: "rgba(255,255,255,0.72)" },
+  modalSubtitle: { margin: "8px 0 0 0", fontSize: 15 },
   profileGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
   profileField: {
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: 16,
     padding: 16,
   },
@@ -277,23 +238,56 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    color: "rgba(255,255,255,0.6)",
   },
-  profileFieldValue: { margin: "8px 0 0 0", fontSize: 16, fontWeight: 600, wordBreak: "break-word" },
+  profileFieldValue: {
+    margin: "8px 0 0 0",
+    fontSize: 16,
+    fontWeight: 600,
+    wordBreak: "break-word",
+  },
 };
 
 type RoleKey = "product-owner" | "scrum-facilitator" | "developer";
 type SidebarItem = { icon: string; label: string; path: string };
-type NavItemProps = { icon: string; label: string; collapsed: boolean; active?: boolean; onClick: () => void };
+type NavItemProps = {
+  icon: string;
+  label: string;
+  collapsed: boolean;
+  active?: boolean;
+  onClick: () => void;
+  isDark: boolean;
+};
 type StoredUser = { id?: string; name?: string; email?: string; role?: string };
 
-function NavItem({ icon, label, collapsed, active = false, onClick }: NavItemProps): JSX.Element {
+function NavItem({
+  icon,
+  label,
+  collapsed,
+  active = false,
+  onClick,
+  isDark,
+}: NavItemProps): JSX.Element {
   return (
     <button
       type="button"
       onClick={onClick}
       title={collapsed ? label : undefined}
-      style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}) }}
+      style={{
+        ...styles.navItem,
+        background: active
+          ? isDark
+            ? "rgba(255,255,255,0.14)"
+            : "#e5e7eb"
+          : isDark
+            ? "rgba(255,255,255,0.06)"
+            : "#f3f4f6",
+        border: active
+          ? isDark
+            ? "1px solid rgba(255,255,255,0.20)"
+            : "1px solid rgba(0,0,0,0.10)"
+          : "1px solid transparent",
+        color: isDark ? "white" : "#111827",
+      }}
       aria-current={active ? "page" : undefined}
     >
       <span style={styles.icon}>{icon}</span>
@@ -312,27 +306,66 @@ function getRoleMenuItems(basePath: string, role: RoleKey): SidebarItem[] {
     { icon: "📚", label: "Education", path: `${basePath}/education` },
     { icon: "⚙️", label: "Settings", path: `${basePath}/settings` },
   ];
+
   switch (role) {
     case "product-owner":
-      return [{ icon: "📌", label: "Product Owner Home", path: `${basePath}/product-owner-dashboard` }, ...commonItems];
+      return [
+        { icon: "📌", label: "Product Owner Home", path: `${basePath}/product-owner-dashboard` },
+        ...commonItems,
+      ];
     case "scrum-facilitator":
-      return [{ icon: "🧭", label: "Scrum Facilitator Home", path: `${basePath}/scrum-facilitator-dashboard` }, ...commonItems];
+      return [
+        { icon: "🧭", label: "Scrum Facilitator Home", path: `${basePath}/scrum-facilitator-dashboard` },
+        ...commonItems,
+      ];
     case "developer":
     default:
-      return [{ icon: "💻", label: "Developer Dashboard", path: `${basePath}/developer-dashboard` }, ...commonItems];
+      return [
+        { icon: "💻", label: "Developer Dashboard", path: `${basePath}/developer-dashboard` },
+        ...commonItems,
+      ];
   }
 }
 
 function getLandingPathForRole(projectId: string, role: RoleKey): string {
   switch (role) {
-    case "product-owner": return `/projects/${projectId}/${role}/product-owner-dashboard`;
-    case "scrum-facilitator": return `/projects/${projectId}/${role}/scrum-facilitator-dashboard`;
+    case "product-owner":
+      return `/projects/${projectId}/${role}/product-owner-dashboard`;
+    case "scrum-facilitator":
+      return `/projects/${projectId}/${role}/scrum-facilitator-dashboard`;
     case "developer":
-    default: return `/projects/${projectId}/${role}/developer-dashboard`;
+    default:
+      return `/projects/${projectId}/${role}/developer-dashboard`;
   }
 }
 
 export default function SidebarLayout({ children }: { children: ReactNode }): JSX.Element {
+  const isIframe = window.self !== window.top;
+
+  if (isIframe) {
+    return <>{children}</>;
+  }
+
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  const colors = {
+    appBg: isDark ? "#0b0f17" : "#f8fafc",
+    panelBg: isDark ? "#0a0e16" : "#ffffff",
+    text: isDark ? "white" : "#111827",
+    mutedText: isDark ? "rgba(255,255,255,0.72)" : "#6b7280",
+    labelText: isDark ? "rgba(255,255,255,0.6)" : "#6b7280",
+    border: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+    borderSoft: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
+    borderStrong: isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.10)",
+    surface: isDark ? "rgba(255,255,255,0.06)" : "#f8fafc",
+    surfaceStrong: isDark ? "rgba(255,255,255,0.08)" : "#f3f4f6",
+    selectBg: isDark ? "#2a2f3a" : "#ffffff",
+    overlay: isDark ? "rgba(0,0,0,0.72)" : "rgba(15,23,42,0.18)",
+    modalBg: isDark ? "linear-gradient(180deg, #111827 0%, #0f172a 100%)" : "#ffffff",
+    optionBg: isDark ? "#2a2f3a" : "#ffffff",
+  };
+
   const [collapsed, setCollapsed] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"" | "Copied!">("");
   const [projects, setProjects] = useState<Project[]>([]);
@@ -351,7 +384,11 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
   useEffect(() => {
     const raw = localStorage.getItem("user");
     if (!raw) return;
-    try { setUser(JSON.parse(raw)); } catch { setUser(null); }
+    try {
+      setUser(JSON.parse(raw));
+    } catch {
+      setUser(null);
+    }
   }, []);
 
   const items = useMemo(() => {
@@ -371,7 +408,9 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
       await navigator.clipboard.writeText(projectId);
       setCopyStatus("Copied!");
       window.setTimeout(() => setCopyStatus(""), 1500);
-    } catch { setCopyStatus(""); }
+    } catch {
+      setCopyStatus("");
+    }
   }
 
   function handleProjectSwitch(nextProjectId: string) {
@@ -387,23 +426,80 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
 
   return (
     <>
-      <div style={styles.shell}>
-        <aside style={{ ...styles.sidebar, width: collapsed ? 84 : 320 }}>
+      <div
+        style={{
+          ...styles.shell,
+          background: colors.appBg,
+          color: colors.text,
+        }}
+      >
+        <aside
+          style={{
+            ...styles.sidebar,
+            width: collapsed ? 84 : 320,
+            background: colors.panelBg,
+            borderRight: `1px solid ${colors.border}`,
+          }}
+        >
           <div style={styles.sidebarTop}>
             <div style={styles.topLeft}>
-              {!collapsed && <h2 style={styles.brand}>SprintWheel</h2>}
               {!collapsed && (
-                <button type="button" style={styles.signedInButton} onClick={() => setProfileOpen(true)}>
+                <h2
+                  style={{
+                    ...styles.brand,
+                    color: colors.text,
+                  }}
+                >
+                  SprintWheel
+                </h2>
+              )}
+
+              {!collapsed && (
+                <button
+                  type="button"
+                  style={{
+                    ...styles.signedInButton,
+                    background: colors.surfaceStrong,
+                    border: `1px solid ${colors.borderStrong}`,
+                    color: colors.text,
+                  }}
+                  onClick={() => setProfileOpen(true)}
+                >
                   <div style={styles.avatarCircle}>{avatarLetter}</div>
                   <div style={styles.signedInTextWrap}>
-                    <p style={styles.signedInLabel}>Signed in as</p>
-                    <p style={styles.signedInValue}>{userEmail}</p>
+                    <p
+                      style={{
+                        ...styles.signedInLabel,
+                        color: colors.mutedText,
+                      }}
+                    >
+                      Signed in as
+                    </p>
+                    <p
+                      style={{
+                        ...styles.signedInValue,
+                        color: colors.text,
+                      }}
+                    >
+                      {userEmail}
+                    </p>
                   </div>
                 </button>
               )}
             </div>
+
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-              <button type="button" style={styles.collapseBtn} onClick={() => setCollapsed(p => !p)} aria-label="toggle sidebar">
+              <button
+                type="button"
+                style={{
+                  ...styles.collapseBtn,
+                  background: colors.surfaceStrong,
+                  border: `1px solid ${colors.borderStrong}`,
+                  color: colors.text,
+                }}
+                onClick={() => setCollapsed((p) => !p)}
+                aria-label="toggle sidebar"
+              >
                 {collapsed ? ">" : "<"}
               </button>
               <NotificationBell size={48} />
@@ -411,59 +507,233 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
           </div>
 
           <nav style={styles.nav}>
-            {items.map(item => {
+            {items.map((item) => {
               const active = location.pathname === item.path;
               return (
-                <NavItem key={item.path} icon={item.icon} label={item.label} collapsed={collapsed} active={active} onClick={() => navigate(item.path)} />
+                <NavItem
+                  key={item.path}
+                  icon={item.icon}
+                  label={item.label}
+                  collapsed={collapsed}
+                  active={active}
+                  onClick={() => navigate(item.path)}
+                  isDark={isDark}
+                />
               );
             })}
           </nav>
 
-          <div style={styles.sidebarBottom}>
+          <div
+            style={{
+              ...styles.sidebarBottom,
+              borderTop: `1px solid ${colors.border}`,
+            }}
+          >
             {!collapsed && projects.length > 0 && (
-              <div style={styles.selectorBox}>
-                <div style={styles.selectorHeader}>Project Selector</div>
-                <select style={styles.select} value={projectId ?? ""} onChange={e => handleProjectSwitch(e.target.value)}>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id} style={{ backgroundColor: "#2a2f3a", color: "white" }}>{p.name}</option>
+              <div
+                style={{
+                  ...styles.selectorBox,
+                  background: colors.surface,
+                  border: `1px solid ${colors.borderSoft}`,
+                }}
+              >
+                <div
+                  style={{
+                    ...styles.selectorHeader,
+                    color: colors.mutedText,
+                  }}
+                >
+                  Project Selector
+                </div>
+                <select
+                  style={{
+                    ...styles.select,
+                    background: colors.selectBg,
+                    border: `1px solid ${colors.borderStrong}`,
+                    color: colors.text,
+                  }}
+                  value={projectId ?? ""}
+                  onChange={(e) => handleProjectSwitch(e.target.value)}
+                >
+                  {projects.map((p) => (
+                    <option
+                      key={p.id}
+                      value={p.id}
+                      style={{
+                        backgroundColor: colors.optionBg,
+                        color: colors.text,
+                      }}
+                    >
+                      {p.name}
+                    </option>
                   ))}
                 </select>
               </div>
             )}
-            <button type="button" style={styles.bottomButton} onClick={() => navigate("/new-project")}>➕ New Project</button>
+
+            <button
+              type="button"
+              style={{
+                ...styles.bottomButton,
+                background: colors.surfaceStrong,
+                border: `1px solid ${colors.borderStrong}`,
+                color: colors.text,
+              }}
+              onClick={() => navigate("/new-project")}
+            >
+              ➕ New Project
+            </button>
+
             {projectId && (
-              <button type="button" style={styles.bottomButton} onClick={() => navigate(`/projects/${projectId}/role-options`)}>🔁 Change Role</button>
-            )}
-            {!collapsed && projectId && (
-              <button type="button" onClick={handleCopyProjectId} style={styles.projectBox} title="Click to copy project ID">
-                <div style={styles.projectIdTitle}>Current Project ID</div>
-                <div>{projectId}</div>
-                <div style={styles.copyHint}>{copyStatus || "Click to copy"}</div>
+              <button
+                type="button"
+                style={{
+                  ...styles.bottomButton,
+                  background: colors.surfaceStrong,
+                  border: `1px solid ${colors.borderStrong}`,
+                  color: colors.text,
+                }}
+                onClick={() => navigate(`/projects/${projectId}/role-options`)}
+              >
+                🔁 Change Role
               </button>
             )}
-            <button type="button" style={{ ...styles.bottomButton, marginTop: 6 }} onClick={logout}>🚪 Logout</button>
+
+            {!collapsed && projectId && (
+              <button
+                type="button"
+                onClick={handleCopyProjectId}
+                title="Click to copy project ID"
+                style={{
+                  ...styles.projectBox,
+                  background: colors.surface,
+                  border: `1px solid ${colors.borderSoft}`,
+                  color: colors.text,
+                }}
+              >
+                <div style={styles.projectIdTitle}>Current Project ID</div>
+                <div>{projectId}</div>
+                <div
+                  style={{
+                    ...styles.copyHint,
+                    color: colors.mutedText,
+                  }}
+                >
+                  {copyStatus || "Click to copy"}
+                </div>
+              </button>
+            )}
+
+            <button
+              type="button"
+              style={{
+                ...styles.bottomButton,
+                marginTop: 6,
+                background: colors.surfaceStrong,
+                border: `1px solid ${colors.borderStrong}`,
+                color: colors.text,
+              }}
+              onClick={logout}
+            >
+              🚪 Logout
+            </button>
           </div>
         </aside>
 
-        <main style={styles.main}>{children}</main>
+        <main
+          style={{
+            ...styles.main,
+            background: colors.appBg,
+            color: colors.text,
+          }}
+        >
+          {children}
+        </main>
       </div>
 
       {profileOpen && (
-        <div style={styles.modalOverlay} onClick={() => setProfileOpen(false)}>
-          <div style={styles.modalCard} onClick={e => e.stopPropagation()}>
-            <button type="button" style={styles.modalClose} onClick={() => setProfileOpen(false)}>✕</button>
+        <div
+          style={{
+            ...styles.modalOverlay,
+            background: colors.overlay,
+          }}
+          onClick={() => setProfileOpen(false)}
+        >
+          <div
+            style={{
+              ...styles.modalCard,
+              background: colors.modalBg,
+              border: `1px solid ${colors.borderSoft}`,
+              color: colors.text,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              style={{
+                ...styles.modalClose,
+                background: colors.surfaceStrong,
+                border: `1px solid ${colors.borderStrong}`,
+                color: colors.text,
+              }}
+              onClick={() => setProfileOpen(false)}
+            >
+              ✕
+            </button>
+
             <div style={styles.modalHeader}>
               <div style={styles.modalAvatar}>{avatarLetter}</div>
               <div style={styles.modalHeaderText}>
-                <h2 style={styles.modalTitle}>{userName}</h2>
-                <p style={styles.modalSubtitle}>Account overview</p>
+                <h2
+                  style={{
+                    ...styles.modalTitle,
+                    color: colors.text,
+                  }}
+                >
+                  {userName}
+                </h2>
+                <p
+                  style={{
+                    ...styles.modalSubtitle,
+                    color: colors.mutedText,
+                  }}
+                >
+                  Account overview
+                </p>
               </div>
             </div>
+
             <div style={styles.profileGrid}>
-              {[["Name", userName], ["Email", userEmail], ["Role", userRole], ["User ID", userId]].map(([label, value]) => (
-                <div key={label} style={styles.profileField}>
-                  <p style={styles.profileFieldLabel}>{label}</p>
-                  <p style={styles.profileFieldValue}>{value}</p>
+              {[
+                ["Name", userName],
+                ["Email", userEmail],
+                ["Role", userRole],
+                ["User ID", userId],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  style={{
+                    ...styles.profileField,
+                    background: colors.surface,
+                    border: `1px solid ${colors.borderSoft}`,
+                  }}
+                >
+                  <p
+                    style={{
+                      ...styles.profileFieldLabel,
+                      color: colors.labelText,
+                    }}
+                  >
+                    {label}
+                  </p>
+                  <p
+                    style={{
+                      ...styles.profileFieldValue,
+                      color: colors.text,
+                    }}
+                  >
+                    {value}
+                  </p>
                 </div>
               ))}
             </div>

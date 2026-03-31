@@ -3,19 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { CSSProperties, JSX } from "react";
 import { useState } from "react";
 import { updateRole, type ProjectRole } from "../api/projects";
+import { useTheme } from "../pages/ThemeContext";
 
 const styles: Record<string, CSSProperties> = {
   error: {
     marginTop: 14,
     fontSize: 12,
-    color: "#ffb4b4",
     opacity: 0.95,
   },
   shell: {
     minHeight: "100vh",
     width: "100%",
-    background: "#0b0f17",
-    color: "white",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -23,18 +21,15 @@ const styles: Record<string, CSSProperties> = {
   },
   card: {
     width: "min(760px, 96vw)",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 24,
     padding: 28,
     boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-    position: "relative", // added this for adding close button
+    position: "relative",
   },
   header: { marginBottom: 18 },
   title: { margin: 0, fontSize: 34, fontWeight: 800, letterSpacing: -0.3 },
   subtitle: {
     margin: "10px 0 0 0",
-    opacity: 0.82,
     fontSize: 15,
     lineHeight: 1.5,
   },
@@ -48,9 +43,6 @@ const styles: Record<string, CSSProperties> = {
     width: "100%",
     borderRadius: 999,
     padding: "18px 18px",
-    background: "rgba(255,255,255,0.08)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    color: "white",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
@@ -69,18 +61,15 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 999,
     display: "grid",
     placeItems: "center",
-    background: "rgba(255,255,255,0.10)",
-    border: "1px solid rgba(255,255,255,0.14)",
     fontSize: 22,
     flexShrink: 0,
   },
   roleTextWrap: { display: "flex", flexDirection: "column" },
   roleTitle: { margin: 0, fontSize: 18, fontWeight: 800 },
-  roleDesc: { margin: "4px 0 0 0", fontSize: 13, opacity: 0.8 },
-  arrow: { opacity: 0.8, fontSize: 18, fontWeight: 700 },
+  roleDesc: { margin: "4px 0 0 0", fontSize: 13 },
+  arrow: { fontSize: 18, fontWeight: 700 },
   footer: {
     marginTop: 18,
-    opacity: 0.65,
     fontSize: 12,
     lineHeight: 1.5,
   },
@@ -90,16 +79,13 @@ const styles: Record<string, CSSProperties> = {
     right: 16,
     borderRadius: 999,
     padding: "12px 16px",
-    background: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    color: "white",
     cursor: "pointer",
     fontWeight: 800,
     fontSize: 16,
     display: "grid",
     placeItems: "center",
     whiteSpace: "nowrap",
-  },    
+  },
 };
 
 type RoleButtonProps = {
@@ -108,6 +94,7 @@ type RoleButtonProps = {
   description: string;
   onClick: () => void;
   disabled?: boolean;
+  isDark: boolean;
 };
 
 function RolePill({
@@ -116,6 +103,7 @@ function RolePill({
   description,
   onClick,
   disabled = false,
+  isDark,
 }: RoleButtonProps): JSX.Element {
   return (
     <motion.button
@@ -123,6 +111,11 @@ function RolePill({
       style={{
         ...styles.pill,
         ...(disabled ? styles.pillDisabled : {}),
+        background: isDark ? "rgba(255,255,255,0.08)" : "#f3f4f6",
+        border: isDark
+          ? "1px solid rgba(255,255,255,0.14)"
+          : "1px solid rgba(0,0,0,0.08)",
+        color: isDark ? "white" : "#111827",
       }}
       onClick={onClick}
       disabled={disabled}
@@ -130,13 +123,32 @@ function RolePill({
       whileTap={disabled ? undefined : { scale: 0.98 }}
     >
       <span style={styles.left}>
-        <span style={styles.icon}>{icon}</span>
+        <span
+          style={{
+            ...styles.icon,
+            background: isDark
+              ? "rgba(255,255,255,0.10)"
+              : "#e5e7eb",
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.14)"
+              : "1px solid rgba(0,0,0,0.08)",
+          }}
+        >
+          {icon}
+        </span>
         <span style={styles.roleTextWrap}>
           <span style={styles.roleTitle}>{title}</span>
-          <span style={styles.roleDesc}>{description}</span>
+          <span
+            style={{
+              ...styles.roleDesc,
+              color: isDark ? "rgba(255,255,255,0.75)" : "#6b7280",
+            }}
+          >
+            {description}
+          </span>
         </span>
       </span>
-      <span style={styles.arrow}>→</span>
+      <span style={{ ...styles.arrow, opacity: 0.8 }}>→</span>
     </motion.button>
   );
 }
@@ -168,6 +180,8 @@ function roleToLanding(role: ProjectRole): string {
 export default function RoleOptionsPage(): JSX.Element {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const [error, setError] = useState<string>("");
   const [busy, setBusy] = useState<boolean>(false);
@@ -202,25 +216,51 @@ export default function RoleOptionsPage(): JSX.Element {
   }
 
   return (
-    <div style={styles.shell}>
-      <div style={styles.card}>
-
-        <motion.button // added close button
+    <div
+      style={{
+        ...styles.shell,
+        background: isDark ? "#0b0f17" : "#f8fafc",
+        color: isDark ? "white" : "#111827",
+      }}
+    >
+      <div
+        style={{
+          ...styles.card,
+          background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff",
+          border: isDark
+            ? "1px solid rgba(255,255,255,0.10)"
+            : "1px solid rgba(0,0,0,0.08)",
+        }}
+      >
+        <motion.button
           type="button"
-          style={styles.closeButton}
+          style={{
+            ...styles.closeButton,
+            background: isDark
+              ? "rgba(255,255,255,0.12)"
+              : "#f3f4f6",
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.18)"
+              : "1px solid rgba(0,0,0,0.08)",
+            color: isDark ? "white" : "#111827",
+          }}
           onClick={() => navigate(-1)}
           aria-label="Close"
-          whileHover={{ y: -2}}  // slight lift on hover
-          whileTap={{ scale: 0.98}} // press effect
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.98 }}
         >
           ×
         </motion.button>
 
         <div style={styles.header}>
           <h1 style={styles.title}>Choose your role</h1>
-          <p style={styles.subtitle}>
-            This sets the layout and tools you&apos;ll see. You can change it
-            later in Settings.
+          <p
+            style={{
+              ...styles.subtitle,
+              color: isDark ? "rgba(255,255,255,0.82)" : "#6b7280",
+            }}
+          >
+            This sets the layout and tools you&apos;ll see. You can change it later in Settings.
           </p>
         </div>
 
@@ -230,6 +270,7 @@ export default function RoleOptionsPage(): JSX.Element {
             title="Product Owner"
             description="Prioritize the backlog, manage scope, and align stakeholders."
             disabled={busy}
+            isDark={isDark}
             onClick={() => void setRoleAndGo("Product Owner")}
           />
 
@@ -238,6 +279,7 @@ export default function RoleOptionsPage(): JSX.Element {
             title="Scrum Facilitator"
             description="Run standups, track blockers, and keep the sprint moving."
             disabled={busy}
+            isDark={isDark}
             onClick={() => void setRoleAndGo("Scrum Facilitator")}
           />
 
@@ -246,13 +288,28 @@ export default function RoleOptionsPage(): JSX.Element {
             title="Developer"
             description="Jump into tasks, progress, and sprint insights."
             disabled={busy}
+            isDark={isDark}
             onClick={() => void setRoleAndGo("Developer")}
           />
         </div>
 
-        {error ? <div style={styles.error}>{error}</div> : null}
+        {error && (
+          <div
+            style={{
+              ...styles.error,
+              color: isDark ? "#ffb4b4" : "#b91c1c",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-        <div style={styles.footer}>
+        <div
+          style={{
+            ...styles.footer,
+            color: isDark ? "rgba(255,255,255,0.65)" : "#6b7280",
+          }}
+        >
           Select the role-specific workspace you want to enter for this project.
         </div>
       </div>

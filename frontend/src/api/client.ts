@@ -50,6 +50,11 @@ export async function api<T>(
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
     const fallback = `${res.status} ${res.statusText}`;
     let parsed: any = null;
 

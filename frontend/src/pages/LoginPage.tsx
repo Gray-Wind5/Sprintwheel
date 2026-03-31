@@ -72,6 +72,7 @@ function LoginPage(): JSX.Element {
     const roleKey = roleToUrlKey(roleFromApi);
     const landing = roleKeyToLanding(roleKey);
 
+    sessionStorage.removeItem("dashboard_revealed");
     navigate(`/projects/${projectId}/${roleKey}/${landing}`, { replace: true });
   }
 
@@ -237,6 +238,7 @@ function LoginPage(): JSX.Element {
                         localStorage.setItem("user", JSON.stringify(u));
                         setUser(u);
 
+                        sessionStorage.removeItem("dashboard_revealed");
                         await routeAfterAuth();
                       } catch (err: any) {
                         setStatus(err?.message ?? "Google login failed");

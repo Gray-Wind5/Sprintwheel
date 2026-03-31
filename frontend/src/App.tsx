@@ -15,17 +15,21 @@ import BackendDebug from "./pages/BackendDebug";
 import NewProject from "./pages/NewProject";
 import ProductBacklogPage from "./pages/ProductBacklogPage";
 import CalendarPage from "./pages/CalendarPage";
-
+import { ThemeProvider } from "./pages/ThemeContext";
 function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
-
       <Route path="/login" element={<LoginPage />} />
+
+      <Route
+        path="*"
+        element={
+          <ThemeProvider>
+    <Routes>
       <Route path="/new-project" element={<NewProject />} />
       <Route path="/backend-debug" element={<BackendDebug />} />
       <Route path="/projects/:projectId/role-options" element={<RoleOptionsPage />} />
-
       <Route path="/projects/:projectId/:role/developer-dashboard" element={<DashboardPage />} />
       <Route path="/projects/:projectId/:role/product-owner-dashboard" element={<ProductOwnerPage />} />
       <Route path="/projects/:projectId/:role/scrum-facilitator-dashboard" element={<ScrumFacilitatorPage />} />
@@ -37,6 +41,10 @@ function App(): JSX.Element {
       <Route path="/projects/:projectId/:role/settings" element={<SettingsPage />} />
       <Route path="/projects/:projectId/:role/product-backlog" element={<ProductBacklogPage />} />
       <Route path="/projects/:projectId/:role/calendar" element={<CalendarPage />} />
+    </Routes>
+    </ThemeProvider>
+    }
+      />
     </Routes>
   );
 }

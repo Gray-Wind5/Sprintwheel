@@ -6,6 +6,7 @@ import { me } from "../../api/auth";
 import { listProjects, type Project } from "../../api/projects";
 import SidebarLayout from "../../components/SidebarLayout";
 import DashboardCalendarPreview from "../../components/DashboardCalendarPreview";
+import { useTheme } from "../ThemeContext";
 
 type User = {
   id: string;
@@ -30,6 +31,7 @@ const styles: Record<string, CSSProperties> = {
     position: "relative",
     width: "100%",
     minHeight: "calc(100vh - 48px)",
+    overflow: "hidden",
   },
 
   content: {
@@ -176,9 +178,9 @@ const styles: Record<string, CSSProperties> = {
     inset: 0,
     zIndex: 30,
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
-    padding: 24,
+    padding: 80,
     background: "rgba(11, 15, 23, 0.38)",
     cursor: "pointer",
   },
@@ -236,6 +238,8 @@ const styles: Record<string, CSSProperties> = {
 export default function ScrumFacilitatorPage(): JSX.Element {
   const navigate = useNavigate();
   const { projectId, role } = useParams();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const [user, setUser] = useState<User | null>(() => {
     const raw = localStorage.getItem("user");
@@ -246,7 +250,9 @@ export default function ScrumFacilitatorPage(): JSX.Element {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [projectError, setProjectError] = useState("");
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(() => {
+    return sessionStorage.getItem("dashboard_revealed") === "true";
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -277,7 +283,6 @@ export default function ScrumFacilitatorPage(): JSX.Element {
     listProjects()
       .then((data) => {
         setProjects(data);
-
         if (projectId) {
           setActiveProjectId(projectId);
         } else if (data.length > 0) {
@@ -296,45 +301,97 @@ export default function ScrumFacilitatorPage(): JSX.Element {
     return projects.find((project) => project.id === activeProjectId) ?? null;
   }, [projects, activeProjectId]);
 
+  function dismiss() {
+    sessionStorage.setItem("dashboard_revealed", "true");
+    setRevealed(true);
+  }
+
   return (
     <SidebarLayout>
-      <main className="app-background" style={styles.main}>
+      <main
+        style={{
+          ...styles.main,
+          background: isDark
+            ? "radial-gradient(circle at top left, rgba(99,102,241,0.14), transparent 28%), linear-gradient(180deg, #0b0f17 0%, #0f172a 45%, #0b0f17 100%)"
+            : "#f8fafc",
+          color: isDark ? "white" : "#111827",
+        }}
+      >
         <div style={styles.shell}>
           <AnimatePresence>
             {!revealed && (
               <motion.div
-                style={styles.overlay}
+                style={{
+                  ...styles.overlay,
+                  background: isDark
+                    ? "rgba(11, 15, 23, 0.38)"
+                    : "rgba(248, 250, 252, 0.62)",
+                }}
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.45, ease: "easeInOut" }}
-                onClick={() => setRevealed(true)}
+                onClick={dismiss}
               >
                 <motion.div
-                  style={styles.glassCard}
+                  style={{
+                    ...styles.glassCard,
+                    background: isDark ? styles.glassCard.background : "#ffffff",
+                    border: isDark
+                      ? styles.glassCard.border
+                      : "1px solid rgba(17,24,39,0.08)",
+                    boxShadow: isDark
+                      ? styles.glassCard.boxShadow
+                      : "0 24px 70px rgba(15,23,42,0.10)",
+                  }}
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 12, scale: 0.98 }}
                   transition={{ duration: 0.55, ease: "easeOut" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <p style={styles.glassEyebrow}>Scrum Facilitator</p>
-                  <h1 style={styles.glassTitle}>
+                  <p
+                    style={{
+                      ...styles.glassEyebrow,
+                      color: isDark ? styles.glassEyebrow.color : "#6b7280",
+                    }}
+                  >
+                    Scrum Facilitator
+                  </p>
+                  <h1
+                    style={{
+                      ...styles.glassTitle,
+                      color: isDark ? "white" : "#111827",
+                    }}
+                  >
                     Hi {user?.name ?? "there"}, welcome to your workspace!
                   </h1>
-                  <p style={styles.glassSubtitle}>
+                  <p
+                    style={{
+                      ...styles.glassSubtitle,
+                      color: isDark ? styles.glassSubtitle.color : "#4b5563",
+                    }}
+                  >
                     Manage impediments, retrospectives, meetings, and team scrum
                     support tools from one central page.
                   </p>
 
                   <button
                     type="button"
-                    style={styles.enterButton}
+                    style={{
+                      ...styles.enterButton,
+                      background: isDark ? styles.enterButton.background : "#f3f4f6",
+                      border: isDark
+                        ? styles.enterButton.border
+                        : "1px solid rgba(17,24,39,0.08)",
+                      color: isDark ? "white" : "#111827",
+                      boxShadow: isDark
+                        ? styles.enterButton.boxShadow
+                        : "0 8px 24px rgba(15,23,42,0.08)",
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setRevealed(true);
+                      dismiss();
                     }}
                   >
                     Enter Workspace
@@ -353,25 +410,61 @@ export default function ScrumFacilitatorPage(): JSX.Element {
             <section style={styles.hero}>
               <div style={styles.heroText}>
                 <motion.h1
-                  style={styles.pageTitle}
+                  style={{
+                    ...styles.pageTitle,
+                    color: isDark ? "white" : "#111827",
+                  }}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
                 >
                   Scrum Facilitator Dashboard
                 </motion.h1>
-                <p style={styles.pageSubtitle}>
+                <p
+                  style={{
+                    ...styles.pageSubtitle,
+                    color: isDark ? styles.pageSubtitle.color : "#4b5563",
+                  }}
+                >
                   A central view for removing blockers, supporting team cadence,
                   organizing retrospectives, and managing scrum operations.
                 </p>
               </div>
 
-              <div style={styles.projectChip}>
-                <p style={styles.chipLabel}>Active Project</p>
-                <p style={styles.chipValue}>
+              <div
+                style={{
+                  ...styles.projectChip,
+                  background: isDark ? styles.projectChip.background : "#ffffff",
+                  border: isDark
+                    ? styles.projectChip.border
+                    : "1px solid rgba(17,24,39,0.08)",
+                  boxShadow: isDark
+                    ? styles.projectChip.boxShadow
+                    : "0 10px 30px rgba(15,23,42,0.08)",
+                }}
+              >
+                <p
+                  style={{
+                    ...styles.chipLabel,
+                    color: isDark ? styles.chipLabel.color : "#6b7280",
+                  }}
+                >
+                  Active Project
+                </p>
+                <p
+                  style={{
+                    ...styles.chipValue,
+                    color: isDark ? "white" : "#111827",
+                  }}
+                >
                   {activeProject?.name ?? "No project selected"}
                 </p>
-                <p style={styles.chipSubtext}>
+                <p
+                  style={{
+                    ...styles.chipSubtext,
+                    color: isDark ? styles.chipSubtext.color : "#6b7280",
+                  }}
+                >
                   {loadingProjects
                     ? "Loading projects..."
                     : projectError
@@ -382,13 +475,44 @@ export default function ScrumFacilitatorPage(): JSX.Element {
             </section>
 
             <section style={styles.topGrid}>
-              <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Impediment Tracker</h2>
-                <p style={styles.cardDescription}>
+              <div
+                style={{
+                  ...styles.card,
+                  background: isDark ? styles.card.background : "#ffffff",
+                  border: isDark
+                    ? styles.card.border
+                    : "1px solid rgba(17,24,39,0.08)",
+                  boxShadow: isDark
+                    ? styles.card.boxShadow
+                    : "0 12px 32px rgba(15,23,42,0.08)",
+                }}
+              >
+                <h2
+                  style={{
+                    ...styles.cardTitle,
+                    color: isDark ? "white" : "#111827",
+                  }}
+                >
+                  Impediment Tracker
+                </h2>
+                <p
+                  style={{
+                    ...styles.cardDescription,
+                    color: isDark ? styles.cardDescription.color : "#4b5563",
+                  }}
+                >
                   Track blockers surfaced by the team and monitor issues that
                   may slow sprint progress or delivery.
                 </p>
-                <div style={styles.imageWrap}>
+                <div
+                  style={{
+                    ...styles.imageWrap,
+                    border: isDark
+                      ? styles.imageWrap.border
+                      : "1px solid rgba(17,24,39,0.08)",
+                    background: isDark ? styles.imageWrap.background : "#f8fafc",
+                  }}
+                >
                   <img
                     src="/impediment_tracker.jpeg"
                     alt="Impediment tracker preview"
@@ -397,13 +521,44 @@ export default function ScrumFacilitatorPage(): JSX.Element {
                 </div>
               </div>
 
-              <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Retrospective Notes</h2>
-                <p style={styles.cardDescription}>
+              <div
+                style={{
+                  ...styles.card,
+                  background: isDark ? styles.card.background : "#ffffff",
+                  border: isDark
+                    ? styles.card.border
+                    : "1px solid rgba(17,24,39,0.08)",
+                  boxShadow: isDark
+                    ? styles.card.boxShadow
+                    : "0 12px 32px rgba(15,23,42,0.08)",
+                }}
+              >
+                <h2
+                  style={{
+                    ...styles.cardTitle,
+                    color: isDark ? "white" : "#111827",
+                  }}
+                >
+                  Retrospective Notes
+                </h2>
+                <p
+                  style={{
+                    ...styles.cardDescription,
+                    color: isDark ? styles.cardDescription.color : "#4b5563",
+                  }}
+                >
                   Review sprint feedback, identify improvement areas, and
                   organize follow-up actions for future sprint cycles.
                 </p>
-                <div style={styles.imageWrap}>
+                <div
+                  style={{
+                    ...styles.imageWrap,
+                    border: isDark
+                      ? styles.imageWrap.border
+                      : "1px solid rgba(17,24,39,0.08)",
+                    background: isDark ? styles.imageWrap.background : "#f8fafc",
+                  }}
+                >
                   <img
                     src="/task-board-placeholder.png"
                     alt="Retrospective notes preview"
@@ -414,13 +569,44 @@ export default function ScrumFacilitatorPage(): JSX.Element {
             </section>
 
             <section style={styles.bottomGrid}>
-              <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Set a Meeting</h2>
-                <p style={styles.cardDescription}>
+              <div
+                style={{
+                  ...styles.card,
+                  background: isDark ? styles.card.background : "#ffffff",
+                  border: isDark
+                    ? styles.card.border
+                    : "1px solid rgba(17,24,39,0.08)",
+                  boxShadow: isDark
+                    ? styles.card.boxShadow
+                    : "0 12px 32px rgba(15,23,42,0.08)",
+                }}
+              >
+                <h2
+                  style={{
+                    ...styles.cardTitle,
+                    color: isDark ? "white" : "#111827",
+                  }}
+                >
+                  Set a Meeting
+                </h2>
+                <p
+                  style={{
+                    ...styles.cardDescription,
+                    color: isDark ? styles.cardDescription.color : "#4b5563",
+                  }}
+                >
                   Schedule team ceremonies, syncs, and follow-up discussions to
                   maintain sprint alignment.
                 </p>
-                <div style={styles.imageWrap}>
+                <div
+                  style={{
+                    ...styles.imageWrap,
+                    border: isDark
+                      ? styles.imageWrap.border
+                      : "1px solid rgba(17,24,39,0.08)",
+                    background: isDark ? styles.imageWrap.background : "#f8fafc",
+                  }}
+                >
                   <img
                     src="/sprint-overview-placeholder.png"
                     alt="Meeting scheduling preview"
@@ -429,13 +615,44 @@ export default function ScrumFacilitatorPage(): JSX.Element {
                 </div>
               </div>
 
-              <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Admin Scrum Edu</h2>
-                <p style={styles.cardDescription}>
+              <div
+                style={{
+                  ...styles.card,
+                  background: isDark ? styles.card.background : "#ffffff",
+                  border: isDark
+                    ? styles.card.border
+                    : "1px solid rgba(17,24,39,0.08)",
+                  boxShadow: isDark
+                    ? styles.card.boxShadow
+                    : "0 12px 32px rgba(15,23,42,0.08)",
+                }}
+              >
+                <h2
+                  style={{
+                    ...styles.cardTitle,
+                    color: isDark ? "white" : "#111827",
+                  }}
+                >
+                  Admin Scrum Edu
+                </h2>
+                <p
+                  style={{
+                    ...styles.cardDescription,
+                    color: isDark ? styles.cardDescription.color : "#4b5563",
+                  }}
+                >
                   Assign learning modules and educational support to developers
                   and product owners as needed.
                 </p>
-                <div style={styles.imageWrap}>
+                <div
+                  style={{
+                    ...styles.imageWrap,
+                    border: isDark
+                      ? styles.imageWrap.border
+                      : "1px solid rgba(17,24,39,0.08)",
+                    background: isDark ? styles.imageWrap.background : "#f8fafc",
+                  }}
+                >
                   <img
                     src="/education-module-placeholder.png"
                     alt="Scrum education preview"
@@ -451,15 +668,35 @@ export default function ScrumFacilitatorPage(): JSX.Element {
                   projectId={projectId}
                   role={role}
                   title="Project Calendar"
-                  subtitle="View this month’s schedule at a glance. Click anywhere on the calendar to open the full calendar page."
+                  subtitle="View this month's schedule at a glance. Click anywhere on the calendar to open the full calendar page."
                 />
               </section>
             )}
 
             {projects.length === 0 && !loadingProjects && !projectError && (
-              <section style={styles.emptyState}>
-                <h3 style={styles.emptyTitle}>No Projects Yet</h3>
-                <p style={styles.emptyText}>
+              <section
+                style={{
+                  ...styles.emptyState,
+                  background: isDark ? styles.emptyState.background : "#ffffff",
+                  border: isDark
+                    ? styles.emptyState.border
+                    : "1px solid rgba(17,24,39,0.08)",
+                }}
+              >
+                <h3
+                  style={{
+                    ...styles.emptyTitle,
+                    color: isDark ? "white" : "#111827",
+                  }}
+                >
+                  No Projects Yet
+                </h3>
+                <p
+                  style={{
+                    ...styles.emptyText,
+                    color: isDark ? styles.emptyText.color : "#4b5563",
+                  }}
+                >
                   Once a project is created, it will appear here so the scrum
                   facilitator dashboard can show active team context and sprint
                   support tools.

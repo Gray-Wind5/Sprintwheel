@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, JSX } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import SidebarLayout from "../components/SidebarLayout";
+import { useTheme } from "./ThemeContext";
 import {
   listProjectEvents,
   createProjectEvent,
@@ -132,6 +134,8 @@ export default function CalendarPage(): JSX.Element {
   const navigate = useNavigate();
   const { projectId, role } = useParams();
 
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const [events, setEvents] = useState<ProjectEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
@@ -423,7 +427,14 @@ export default function CalendarPage(): JSX.Element {
   }
 
   return (
-    <div style={styles.shell}>
+    <SidebarLayout>
+    <div
+  style={{
+    ...styles.shell,
+    background: isDark ? "#0b0f17" : "#f8fafc",
+    color: isDark ? "white" : "#111827",
+  }}
+>
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -999,6 +1010,7 @@ export default function CalendarPage(): JSX.Element {
         </div>
       )}
     </div>
+    </SidebarLayout>
   );
 }
 
