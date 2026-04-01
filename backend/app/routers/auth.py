@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.core.security import hash_password, verify_password
-from app.core.jwt import create_access_token
+from app.core.jwt import (
+    create_access_token,
+    create_password_reset_token,
+    verify_password_reset_token,
+)
 from app.core.deps import get_current_user
 from app.schemas import RegisterIn, LoginIn, TokenOut, UserOut
 import os
@@ -14,12 +18,92 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from pydantic import BaseModel
 from app.core.config import GOOGLE_CLIENT_ID
-from app.schemas.auth import ChangePasswordIn, ChangeNameIn
+from app.schemas.auth import (
+    ChangePasswordIn,
+    ChangeNameIn,
+    ForgotPasswordIn,
+    ResetPasswordIn,
+)
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 class GoogleLoginIn(BaseModel):
     id_token: str
+
+def send_password_reset_email(email: str, reset_link: str):
+    smtp_host = os.getenv("SMTP_HOST")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+    from_email = os.getenv("FROM_EMAIL", smtp_user)
+
+    if not smtp_host or not smtp_user or not smtp_pass:
+        raise HTTPException(status_code=500, detail="SMTP email settings are not configured")
+
+    subject = "Reset your SprintWheel password"
+    body = f"""
+Hi,
+
+We received a request to reset your SprintWheel password.
+
+Click the link below to choose a new password:
+{reset_link}
+
+If you did not request this, you can ignore this email.
+
+Thanks,
+SprintWheel
+""".strip()
+
+    msg = MIMEMultipart()
+    msg["From"] = from_email
+    msg["To"] = email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(from_email, email, msg.as_string())
+
+
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if user:
+        token = create_password_reset_token(user.email)
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        reset_link = f"{frontend_url}/reset-password?token={token}"
+        send_password_reset_email(user.email, reset_link)
+
+    return {
+        "message": "If an account exists for that email, a reset link has been sent."
+    }
+
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordIn, db: Session = Depends(get_db)):
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    if len(data.new_password) > 72:
+        raise HTTPException(status_code=400, detail="Password must be 72 characters or fewer")
+
+    email = verify_password_reset_token(data.token)
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "Password reset successful"}
 
 @router.post("/register", response_model=UserOut)
 def register(data: RegisterIn, db: Session = Depends(get_db)):
@@ -130,3 +214,4 @@ def google_login(data: GoogleLoginIn, db: Session = Depends(get_db)):
 
     token = create_access_token(user.id)
     return {"access_token": token, "token_type": "bearer"}
+

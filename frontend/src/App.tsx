@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import DashboardPage from "./pages/layouts/DashboardPage";
 import ProductOwnerPage from "./pages/layouts/ProductOwnerPage";
 import RoleOptionsPage from "./pages/RoleOptionsPage";
@@ -17,11 +19,14 @@ import ProductBacklogPage from "./pages/ProductBacklogPage";
 import CalendarPage from "./pages/CalendarPage";
 import { ThemeProvider } from "./pages/ThemeContext";
 import ScrumExamPage from "./pages/ScrumExamPage";
+
 function App(): JSX.Element {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       <Route
         path="*"
