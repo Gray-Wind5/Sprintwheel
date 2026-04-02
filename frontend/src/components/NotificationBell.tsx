@@ -78,7 +78,7 @@ function getNotificationIcon(message: string): string {
   return "🔔";
 }
 
-function OctopusMascot({
+function AnimatedOllie({
   hasUnread,
   size = 40,
 }: {
@@ -86,84 +86,195 @@ function OctopusMascot({
   size?: number;
 }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{
-        filter: hasUnread ? "drop-shadow(0 0 6px #7f77dd)" : "none",
-        transition: "filter 0.3s",
-        flexShrink: 0,
-      }}
-    >
-      <ellipse cx="32" cy="26" rx="18" ry="16" fill="#7f77dd" />
-      <ellipse cx="26" cy="20" rx="6" ry="4" fill="#afa9ec" opacity="0.5" />
-      <circle cx="26" cy="24" r="4" fill="white" />
-      <circle cx="38" cy="24" r="4" fill="white" />
-      <circle cx="27" cy="24" r="2" fill="#1a1a2e" />
-      <circle cx="39" cy="24" r="2" fill="#1a1a2e" />
-      <circle cx="28" cy="23" r="0.8" fill="white" />
-      <circle cx="40" cy="23" r="0.8" fill="white" />
-      <path
-        d="M27 30 Q32 34 37 30"
-        stroke="white"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <ellipse cx="22" cy="28" rx="3" ry="1.5" fill="#ed93b1" opacity="0.6" />
-      <ellipse cx="42" cy="28" rx="3" ry="1.5" fill="#ed93b1" opacity="0.6" />
-      <path
-        d="M16 38 Q12 44 14 50 Q16 56 13 60"
-        stroke="#7f77dd"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M21 42 Q19 48 21 54 Q23 58 20 62"
-        stroke="#7f77dd"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M27 44 Q27 50 29 56 Q30 60 28 63"
-        stroke="#7f77dd"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M33 44 Q35 50 33 56 Q32 60 34 63"
-        stroke="#7f77dd"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M39 42 Q41 48 39 54 Q37 58 40 62"
-        stroke="#7f77dd"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <path
-        d="M44 38 Q48 44 46 50 Q44 56 47 60"
-        stroke="#7f77dd"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <circle cx="13" cy="60" r="2" fill="#534ab7" />
-      <circle cx="20" cy="62" r="2" fill="#534ab7" />
-      <circle cx="28" cy="63" r="2" fill="#534ab7" />
-      <circle cx="34" cy="63" r="2" fill="#534ab7" />
-      <circle cx="40" cy="62" r="2" fill="#534ab7" />
-      <circle cx="47" cy="60" r="2" fill="#534ab7" />
-    </svg>
+    <>
+      <style>{`
+        @keyframes ollie-float {
+          0%, 100% { transform: translateY(0px) rotate(-2deg); }
+          50% { transform: translateY(-12px) rotate(2deg); }
+        }
+
+        @keyframes ollie-blink {
+          0%, 90%, 100% { transform: scaleY(1); }
+          95% { transform: scaleY(0.08); }
+        }
+
+        @keyframes ollie-glow-unread {
+          0%, 100% { filter: drop-shadow(0 0 8px rgba(127,119,221,0.5)); }
+          50% { filter: drop-shadow(0 0 18px rgba(127,119,221,0.9)); }
+        }
+
+        @keyframes ollie-glow-rest {
+          0%, 100% { filter: drop-shadow(0 0 3px rgba(127,119,221,0.12)); }
+          50% { filter: drop-shadow(0 0 7px rgba(127,119,221,0.2)); }
+        }
+
+        @keyframes tentacle-1 {
+          0%, 100% { transform: rotate(0deg); transform-origin: 16px 38px; }
+          50% { transform: rotate(-8deg); transform-origin: 16px 38px; }
+        }
+
+        @keyframes tentacle-2 {
+          0%, 100% { transform: rotate(0deg); transform-origin: 21px 42px; }
+          50% { transform: rotate(6deg); transform-origin: 21px 42px; }
+        }
+
+        @keyframes tentacle-3 {
+          0%, 100% { transform: rotate(0deg); transform-origin: 27px 44px; }
+          33% { transform: rotate(-5deg); transform-origin: 27px 44px; }
+          66% { transform: rotate(5deg); transform-origin: 27px 44px; }
+        }
+
+        @keyframes tentacle-4 {
+          0%, 100% { transform: rotate(0deg); transform-origin: 33px 44px; }
+          33% { transform: rotate(5deg); transform-origin: 33px 44px; }
+          66% { transform: rotate(-5deg); transform-origin: 33px 44px; }
+        }
+
+        @keyframes tentacle-5 {
+          0%, 100% { transform: rotate(0deg); transform-origin: 39px 42px; }
+          50% { transform: rotate(-6deg); transform-origin: 39px 42px; }
+        }
+
+        @keyframes tentacle-6 {
+          0%, 100% { transform: rotate(0deg); transform-origin: 44px 38px; }
+          50% { transform: rotate(8deg); transform-origin: 44px 38px; }
+        }
+
+        .ollie-wrap {
+          display: inline-block;
+          animation: ollie-float 3.5s ease-in-out infinite;
+        }
+
+        .ollie-wrap-unread {
+          animation:
+            ollie-float 3.5s ease-in-out infinite,
+            ollie-glow-unread 3.5s ease-in-out infinite;
+        }
+
+        .ollie-wrap-rest {
+          animation:
+            ollie-float 3.5s ease-in-out infinite,
+            ollie-glow-rest 3.5s ease-in-out infinite;
+        }
+
+        .ollie-eye-left {
+          animation: ollie-blink 4s ease-in-out infinite;
+          transform-origin: 26px 24px;
+        }
+
+        .ollie-eye-right {
+          animation: ollie-blink 4s ease-in-out infinite 0.1s;
+          transform-origin: 38px 24px;
+        }
+
+        .ollie-t1 { animation: tentacle-1 2.2s ease-in-out infinite; }
+        .ollie-t2 { animation: tentacle-2 2.5s ease-in-out infinite 0.2s; }
+        .ollie-t3 { animation: tentacle-3 2.1s ease-in-out infinite 0.1s; }
+        .ollie-t4 { animation: tentacle-4 2.1s ease-in-out infinite 0.3s; }
+        .ollie-t5 { animation: tentacle-5 2.5s ease-in-out infinite 0.15s; }
+        .ollie-t6 { animation: tentacle-6 2.2s ease-in-out infinite 0.05s; }
+      `}</style>
+
+      <div
+        className={`ollie-wrap ${hasUnread ? "ollie-wrap-unread" : "ollie-wrap-rest"}`}
+        style={{ flexShrink: 0, lineHeight: 0 }}
+      >
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 64 64"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <ellipse cx="32" cy="26" rx="18" ry="16" fill="#7f77dd" />
+          <ellipse cx="26" cy="20" rx="6" ry="4" fill="#afa9ec" opacity="0.5" />
+
+          <circle cx="26" cy="24" r="4" fill="white" className="ollie-eye-left" />
+          <circle cx="38" cy="24" r="4" fill="white" className="ollie-eye-right" />
+          <circle cx="27" cy="24" r="2" fill="#1a1a2e" className="ollie-eye-left" />
+          <circle cx="39" cy="24" r="2" fill="#1a1a2e" className="ollie-eye-right" />
+          <circle cx="28" cy="23" r="0.8" fill="white" className="ollie-eye-left" />
+          <circle cx="40" cy="23" r="0.8" fill="white" className="ollie-eye-right" />
+
+          <path
+            d="M27 30 Q32 34 37 30"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            fill="none"
+          />
+
+          <ellipse cx="22" cy="28" rx="3" ry="1.5" fill="#ed93b1" opacity="0.6" />
+          <ellipse cx="42" cy="28" rx="3" ry="1.5" fill="#ed93b1" opacity="0.6" />
+
+          <g className="ollie-t1">
+            <path
+              d="M16 38 Q12 44 14 50 Q16 56 13 60"
+              stroke="#7f77dd"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="13" cy="60" r="2" fill="#534ab7" />
+          </g>
+
+          <g className="ollie-t2">
+            <path
+              d="M21 42 Q19 48 21 54 Q23 58 20 62"
+              stroke="#7f77dd"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="20" cy="62" r="2" fill="#534ab7" />
+          </g>
+
+          <g className="ollie-t3">
+            <path
+              d="M27 44 Q27 50 29 56 Q30 60 28 63"
+              stroke="#7f77dd"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="28" cy="63" r="2" fill="#534ab7" />
+          </g>
+
+          <g className="ollie-t4">
+            <path
+              d="M33 44 Q35 50 33 56 Q32 60 34 63"
+              stroke="#7f77dd"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="34" cy="63" r="2" fill="#534ab7" />
+          </g>
+
+          <g className="ollie-t5">
+            <path
+              d="M39 42 Q41 48 39 54 Q37 58 40 62"
+              stroke="#7f77dd"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="40" cy="62" r="2" fill="#534ab7" />
+          </g>
+
+          <g className="ollie-t6">
+            <path
+              d="M44 38 Q48 44 46 50 Q44 56 47 60"
+              stroke="#7f77dd"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+            <circle cx="47" cy="60" r="2" fill="#534ab7" />
+          </g>
+        </svg>
+      </div>
+    </>
   );
 }
 
@@ -242,6 +353,7 @@ function NotifRow({
         >
           {n.message}
         </p>
+
         <div
           style={{
             display: "flex",
@@ -311,12 +423,31 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
   useEffect(() => {
     if (open && bellRef.current) {
       const rect = bellRef.current.getBoundingClientRect();
-      setPanelPos({ top: rect.top, left: rect.right + 14 });
+
+      const panelWidth = 440;
+      const gap = 14;
+      const rightSpace = window.innerWidth - rect.right;
+      const leftSpace = rect.left;
+
+      let left = rect.right + gap;
+
+      if (rightSpace < panelWidth + gap && leftSpace > panelWidth + gap) {
+        left = rect.left - panelWidth - gap;
+      }
+
+      const maxLeft = window.innerWidth - panelWidth - 12;
+      left = Math.max(12, Math.min(left, maxLeft));
+
+      const maxTop = window.innerHeight - 120;
+      const top = Math.max(12, Math.min(rect.top, maxTop));
+
+      setPanelPos({ top, left });
     }
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
+
     function handleClick(e: MouseEvent) {
       const panel = document.getElementById("notif-panel");
       if (
@@ -328,6 +459,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
         setOpen(false);
       }
     }
+
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
@@ -367,7 +499,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
             zIndex: 99999,
             display: "flex",
             flexDirection: "column",
-            overflow: "visible",
+            overflow: "hidden",
           }}
         >
           <div
@@ -390,7 +522,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                 marginBottom: 14,
               }}
             >
-              <OctopusMascot hasUnread={unreadCount > 0} size={60} />
+              <AnimatedOllie hasUnread={unreadCount > 0} size={60} />
               <div style={{ flex: 1 }}>
                 <div
                   style={{
@@ -416,6 +548,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                     : "All caught up! Ollie is resting 🐙"}
                 </div>
               </div>
+
               {unreadCount > 0 && (
                 <span
                   style={{
@@ -432,6 +565,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                 </span>
               )}
             </div>
+
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
@@ -464,8 +598,9 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                     marginBottom: 18,
                   }}
                 >
-                  <OctopusMascot hasUnread={false} size={68} />
+                  <AnimatedOllie hasUnread={false} size={68} />
                 </div>
+
                 <div
                   style={{
                     fontSize: 15,
@@ -476,6 +611,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                 >
                   No notifications yet
                 </div>
+
                 <div
                   style={{
                     fontSize: 13,
@@ -515,6 +651,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                     ))}
                   </>
                 )}
+
                 {read.length > 0 && (
                   <>
                     <div
@@ -555,9 +692,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
           title="Notifications"
           style={{
             position: "relative",
-            background: open
-              ? "rgba(127,119,221,0.15)"
-              : "transparent",
+            background: open ? "rgba(127,119,221,0.15)" : "transparent",
             border: open
               ? "1px solid rgba(127,119,221,0.35)"
               : "1px solid transparent",
@@ -570,7 +705,8 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
             transition: "all 0.2s",
           }}
         >
-          <OctopusMascot hasUnread={unreadCount > 0} size={size} />
+          <AnimatedOllie hasUnread={unreadCount > 0} size={size} />
+
           {unreadCount > 0 && (
             <span
               style={{
@@ -588,9 +724,7 @@ export default function NotificationBell({ size = 32 }: { size?: number }) {
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "0 3px",
-                border: isDark
-                  ? "2px solid #0a0e16"
-                  : "2px solid #ffffff",
+                border: isDark ? "2px solid #0a0e16" : "2px solid #ffffff",
                 lineHeight: 1,
               }}
             >

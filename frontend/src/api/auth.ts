@@ -86,3 +86,40 @@ export async function googleLogin(id_token: string): Promise<TokenOut> {
     }
     return res.json();
   }
+
+  export async function forgotPassword(email: string) {
+    const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  
+    const data = await res.json().catch(() => ({}));
+  
+    if (!res.ok) {
+      throw new Error(data?.detail || data?.message || "Unable to send reset email.");
+    }
+  
+    return data;
+  }
+  
+  export async function resetPassword(token: string, newPassword: string) {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token,
+        new_password: newPassword,
+      }),
+    });
+  
+    const data = await res.json().catch(() => ({}));
+  
+    if (!res.ok) {
+      throw new Error(data?.detail || data?.message || "Reset failed");
+    }
+  
+    return data;
+  }

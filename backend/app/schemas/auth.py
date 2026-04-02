@@ -29,3 +29,10 @@ class ChangePasswordIn(BaseModel):
 class ChangeNameIn(BaseModel):
     current_password: str
     new_name: str
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str
