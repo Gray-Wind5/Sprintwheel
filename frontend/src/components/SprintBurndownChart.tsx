@@ -3,17 +3,17 @@ import {CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis, Responsiv
 // import { RechartsDevtools } from "@recharts/devtools";
 
 const mockData = [
-    { date: "Jan 1", remaining: 50 },
-    { date: "Jan 2", remaining: 48 },
-    { date: "Jan 3", remaining: 38 },
-    { date: "Jan 4", remaining: 35 },
-    { date: "Jan 5", remaining: 28 },
-    { date: "Jan 6", remaining: 25 },
-    { date: "Jan 7", remaining: 21 },
+    { date: "Day 1: Jan 1", remaining: 50 },
+    { date: "Day 2: Jan 2", remaining: 48 },
+    { date: "Day 3: Jan 3", remaining: 38 },
+    { date: "Day 4: Jan 4", remaining: 35 },
+    { date: "Day 5: Jan 5", remaining: 28 },
+    { date: "Day 6: Jan 6", remaining: 25 },
+    { date: "Day 7: Jan 7", remaining: 21 },
 ];
 
 // TODO: WILL WANT TO AUTOCALC THIS
-const today = "Jan 4";
+const today = "Day 4: Jan 4";
 
 interface BurndownPoint {
     date: string;
@@ -37,7 +37,7 @@ export default function SprintBurndownChart() {
                     }} />
                 <YAxis width="auto" 
                     label={{ 
-                        value: "Remaining Task Points", 
+                        value: "Remaining Points", 
                         position: "insideLeft", 
                         angle: -90,
                         textAnchor: "middle",

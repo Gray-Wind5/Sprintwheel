@@ -1,55 +1,90 @@
-import type{ CSSProperties, JSX } from "react";
-//import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
-import SprintBurndownChart from "../components/SprintBurndownChart";
+import{ useState, useEffect, type CSSProperties, type JSX } from "react";
+import SprintBurndownChart from "../components/SprintBurndownChart"; //FOR STATIC OLD ONE, PLS KEEP FOR NOW
+import SidebarLayout from "../components/SidebarLayout";
+import { useTheme } from "./ThemeContext";
+
+
+import { useSprintBurndownData } from "../hooks/useBurndown";
+import { BurndownChartUI } from "../components/BurndownChartUI";
+import { useParams } from "react-router-dom"; 
 
 export default function ProgressPage(): JSX.Element {
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
 
-    const containerStyle: CSSProperties = { color: "black", padding: 40 };
+    const containerStyle: CSSProperties = {
+        padding: 40,
+        minHeight: "100vh",
+        background: isDark ? "#0b0f17" : "#f8fafc",
+        color: isDark ? "white" : "#111827",
+    };
 
-    // data to hold space for test graph
-    {/*const testData = [
-        { date: "Day 1", remaining: 0, ideal: 0 },
-        { date: "Day 2", remaining: 0, ideal: 0 },
-        { date: "Day 3", remaining: 0, ideal: 0 },
-    ];
-    */}
+    const chartWrapperStyle: CSSProperties = {
+        padding: 40,
+        marginTop: 16,
+        borderRadius: 16,
+        background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
+        border: isDark
+            ? "1px solid rgba(255,255,255,0.1)"
+            : "1px solid rgba(17,24,39,0.1)",
+    };
 
+    const { projectId } = useParams<{ projectId: string }>();
+    const [sprintId, setSprintId] = useState<string>("");
 
-    return (
-        <div style={containerStyle}>
-            <h1>Progress Page</h1>
-            <p>This is the Progress page.</p>
-            <p> This is where the Burndown Chart, Velocity Chart, & Sprint Report will live</p>
+  useEffect(() => {
+    if (!projectId) return;
 
-            <img src="/sprint_burndown_chart.png" alt="Sprint Burndown Chart showing task completion over time" style={{ maxWidth: "100%", height: "auto", marginTop: 20 }} />
+    fetch(`http://127.0.0.1:8000/sprints?project_id=${projectId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+    })
+      .then(res => res.json())
+      .then((sprints: any[]) => {
 
-            <h2>Sprint #BLANK Burndown Chart</h2>
-            <div style={{ padding: 40 }}>
-                <SprintBurndownChart />
-            </div>
+        const activeSprint = sprints.find(s => s.is_active);
 
+        if (activeSprint) {
+          setSprintId(activeSprint.id);
+        } else {
+          console.warn("No active sprint found for this project.");
+        }
+      })
+      .catch((err) => console.error("Error resolving sprint:", err));
+  }, [projectId]);
 
-            {/* Placeholder Recharts graph*/}
-            {/*
-            <div style={{ marginTop: 20}}>
-                <LineChart
-                width={800}
-                height={350}
-                data={testData}
-                margin={{ top: 20, right: 30, left: 5, bottom: 10 }}
-                >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="remaining" stroke="#ff4d4f" strokeWidth={2} name="Remaining Points" />
-                    <Line type="monotone" dataKey="ideal" stroke="#8884d8" strokeDasharray="5 5" name="Ideal" />
-                </LineChart>
-            </div>
-            */}
+    const { chartData, sprintNumber, loading } = useSprintBurndownData(sprintId);    
 
 
+  return (
+    <SidebarLayout>
+      <div style={containerStyle}>
+        <h1>Progress Page</h1>
+        <p>This is where the Burndown Chart, Velocity Chart, & Sprint Report will live</p>
+
+
+        <h1 style={{ fontSize: "32px", fontWeight: 700 }}>
+          {loading ? "Loading..." : `Sprint ${sprintNumber} Burndown`}
+        </h1>
+
+        <div style={ chartWrapperStyle }>
+          {!sprintId ? (
+              <p style={{ color: "#111" }}>No active sprint found for this project.</p>
+            ) : loading ? (
+              <p style={{ color: "#111" }}>Fetching burndown array...</p>
+            ) : chartData.length > 0 ? (
+              <BurndownChartUI data={chartData} />
+            ) : (
+              <p style={{ color: "#111" }}>No data found for this sprint.</p>
+            )}
         </div>
-    );
+
+
+        <h2>Sprint #BLANK Burndown Chart</h2>
+        <div style={chartWrapperStyle}>
+          <SprintBurndownChart />
+        </div>    
+
+      </div>
+    </SidebarLayout>
+  );
 }
