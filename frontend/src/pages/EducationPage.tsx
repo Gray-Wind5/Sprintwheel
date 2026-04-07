@@ -88,7 +88,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#9ca3af",
   },
   progressBarWrap: {
-    width: 100%,
+    width: "100%",
     height: 10,
     backgroundColor: "#1f2937",
     borderRadius: 999,
@@ -163,7 +163,7 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
-export default function ToDoPage(): JSX.Element {
+export default function EducationPage(): JSX.Element {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const navigate = useNavigate();
@@ -191,7 +191,7 @@ export default function ToDoPage(): JSX.Element {
           <p style={styles.eyebrow}>Learn Scrum </p>
           <h1 style={styles.title}>Scrum.Edu </h1>
           <p
-            style {{
+            style = {{
               ...styles.subtitle,
               color: isDark ? "#d1d5db" : "#4b5563",
             }}
@@ -202,7 +202,7 @@ export default function ToDoPage(): JSX.Element {
           </p>
           <div style={styles.heroRow}>
             <button style={styles.primaryButton}>Continue Learning</button>
-            <button style={styles.secondaryButton}>Browse Topics</button>
+            <button style={styles.primaryButton}>Browse Topics</button>
           </div>
           </section>
           <section
@@ -261,12 +261,17 @@ export default function ToDoPage(): JSX.Element {
                 <button
                    style={styles.cardButton}
                    onClick={() => {
-                    if (i === 4) {
-                      navigate('/projects/${projectId}/${role}/scrum-exam');
-                    }
+                    const routes = [
+                      "scrum-guide",
+                      "scrum-roles",
+                      "scrum-events",
+                      "scrum-artifacts",
+                      "scrum-exam",
+                    ];
+                    navigate(`/projects/${projectId}/${role}/${routes[i]}`);
                    }}
                 >
-                  {["Start", "Learn", "Explore","View","Practice"][i]}
+                  {["Start Here", "Learning Scrum", "Event Exploration","Understanding Artifacts","Test Yourself"][i]}
                 </button>
             </div>
             ))}
