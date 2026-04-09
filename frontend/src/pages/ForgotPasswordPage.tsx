@@ -1,14 +1,14 @@
 import "../App.css";
 import Banner from "../Banner";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { forgotPassword } from "../api/auth";
 
-function ForgotPasswordPage() {
+function ForgotPasswordPage(): JSX.Element {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("");
 
