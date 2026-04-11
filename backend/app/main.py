@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers.notifications import router as notifications_router
 from app.routers.edu import router as edu_router
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
 from app.services.notification_scheduler import create_scheduler
 
 @asynccontextmanager
@@ -29,7 +28,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://sprintwheel.onrender.com/",
+        "https://sprintwheel-frontend-dvxg53811-gray-wind5s-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
