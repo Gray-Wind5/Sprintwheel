@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import type { JSX, CSSProperties } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
+import { api } from "../api/client";
 
 interface Story {
   id: string;
@@ -21,159 +22,266 @@ interface PendingDelete {
   title: string;
 }
 
+const FIBONACCI_POINTS = [1, 2, 3, 5, 8, 13, 21, 34] as const;
+
+function normalizePoints(value: number | null | undefined): number {
+  if (value == null || Number.isNaN(value)) return 1;
+  return FIBONACCI_POINTS.includes(value as (typeof FIBONACCI_POINTS)[number])
+    ? value
+    : 1;
+}
+
+function nextFib(value: number): number {
+  const current = normalizePoints(value);
+  const index = FIBONACCI_POINTS.indexOf(current);
+  return index >= 0 && index < FIBONACCI_POINTS.length - 1
+    ? FIBONACCI_POINTS[index + 1]
+    : FIBONACCI_POINTS[FIBONACCI_POINTS.length - 1];
+}
+
+function prevFib(value: number): number {
+  const current = normalizePoints(value);
+  const index = FIBONACCI_POINTS.indexOf(current);
+  return index > 0 ? FIBONACCI_POINTS[index - 1] : FIBONACCI_POINTS[0];
+}
+
+function isPlaceholderStory(story: Story): boolean {
+  const title = story.title.trim().toLowerCase();
+  const description = (story.description ?? "").trim().toLowerCase();
+
+  return (
+    title === "main board" ||
+    title === "main backlog" ||
+    title === "product backlog" ||
+    title === "main board product" ||
+    (title === "main board product" && !description) ||
+    (title === "main board" && !description)
+  );
+}
+
+function cleanStories(data: Story[]): Story[] {
+  return data
+    .filter((story) => !isPlaceholderStory(story))
+    .map((story) => ({
+      ...story,
+      points: normalizePoints(story.points),
+    }));
+}
+
 export default function ProductBacklogPage(): JSX.Element {
   const { projectId } = useParams();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newPoints, setNewPoints] = useState(1);
+  const [newPoints, setNewPoints] = useState<number>(1);
 
   const [storyToDelete, setStoryToDelete] = useState<PendingDelete | null>(null);
 
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const [savingDoneIds, setSavingDoneIds] = useState<string[]>([]);
+  const [savingPointIds, setSavingPointIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!projectId) return;
-    fetchBacklog();
+    void fetchBacklog();
   }, [projectId]);
 
-  function fetchBacklog() {
+  async function fetchBacklog() {
     if (!projectId) return;
 
     setLoading(true);
-
-    fetch(`http://127.0.0.1:8000/stories/backlog?project_id=${projectId}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setStories(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching backlog:", err);
-        setLoading(false);
-      });
+    try {
+      const data = await api<Story[]>(`/stories/backlog?project_id=${projectId}`);
+      setStories(cleanStories(Array.isArray(data) ? data : []));
+    } catch (err) {
+      console.error("Error fetching backlog:", err);
+      setStories([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function createBacklogStory() {
+  async function createBacklogStory() {
     if (!projectId || !newTitle.trim()) return;
 
-    fetch("http://127.0.0.1:8000/stories/backlog", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({
-        project_id: projectId,
-        title: newTitle.trim(),
-        description: newDescription.trim() || null,
-        points: Number.isNaN(newPoints) ? 0 : newPoints,
-        priority: 1,
-      }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => null);
+    try {
+      const createdStory = await api<Story>(`/stories/backlog`, {
+        method: "POST",
+        body: JSON.stringify({
+          project_id: projectId,
+          title: newTitle.trim(),
+          description: newDescription.trim() || null,
+          points: normalizePoints(newPoints),
+          priority: 1,
+        }),
+      });
 
-        if (!res.ok) {
-          console.error("Create backlog story failed:", data);
-          throw new Error("Failed to create backlog story");
-        }
+      setStories((prev) => [
+        {
+          ...createdStory,
+          points: normalizePoints(createdStory.points),
+        },
+        ...prev,
+      ]);
 
-        return data;
-      })
-      .then((createdStory) => {
-        setStories((prev) => [createdStory, ...prev]);
-        setNewTitle("");
-        setNewDescription("");
-        setNewPoints(1);
-      })
-      .catch((err) => console.error("Error creating backlog story:", err));
+      setNewTitle("");
+      setNewDescription("");
+      setNewPoints(1);
+    } catch (err) {
+      console.error("Error creating backlog story:", err);
+    }
   }
 
-  function syncStoryUpdate(
+  async function syncStoryUpdate(
     storyId: string,
     updates: Partial<Pick<Story, "title" | "description" | "points" | "priority" | "isDone">>,
     previousStories: Story[]
   ) {
-    fetch(`http://127.0.0.1:8000/stories/${storyId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(updates),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-        return res.json();
-      })
-      .then((updatedStory) => {
-        setStories((prev) =>
-          prev.map((story) => (story.id === storyId ? updatedStory : story))
-        );
-      })
-      .catch((err) => {
-        console.error("Error updating story:", err);
-        setStories(previousStories);
+    try {
+      const payload = {
+        ...updates,
+        ...(updates.points !== undefined
+          ? { points: normalizePoints(updates.points) }
+          : {}),
+      };
+
+      const updatedStory = await api<Story>(`/stories/${storyId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
       });
+
+      setStories((prev) =>
+        prev.map((story) =>
+          story.id === storyId
+            ? { ...updatedStory, points: normalizePoints(updatedStory.points) }
+            : story
+        )
+      );
+    } catch (err) {
+      console.error("Error updating story:", err);
+      setStories(previousStories);
+    }
   }
 
   function updateStoryOptimistically(
     storyId: string,
     updates: Partial<Pick<Story, "title" | "description" | "points" | "priority" | "isDone">>
   ) {
-    const previousStories = [...stories];
+    const previousStories = stories.map((story) => ({ ...story }));
+
+    const normalizedUpdates = {
+      ...updates,
+      ...(updates.points !== undefined
+        ? { points: normalizePoints(updates.points) }
+        : {}),
+    };
 
     setStories((prev) =>
       prev.map((story) =>
-        story.id === storyId ? { ...story, ...updates } : story
+        story.id === storyId ? { ...story, ...normalizedUpdates } : story
       )
     );
 
-    syncStoryUpdate(storyId, updates, previousStories);
+    void syncStoryUpdate(storyId, normalizedUpdates, previousStories);
   }
 
-  function deleteStory(storyId: string) {
-    const previousStories = [...stories];
+  async function toggleDone(storyId: string, checked: boolean) {
+    if (savingDoneIds.includes(storyId)) return;
+
+    const previousStories = stories.map((story) => ({ ...story }));
+
+    setSavingDoneIds((prev) => [...prev, storyId]);
+    setStories((prev) =>
+      prev.map((story) =>
+        story.id === storyId ? { ...story, isDone: checked } : story
+      )
+    );
+
+    try {
+      const updatedStory = await api<Story>(`/stories/${storyId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ isDone: checked }),
+      });
+
+      setStories((prev) =>
+        prev.map((story) =>
+          story.id === storyId
+            ? { ...updatedStory, points: normalizePoints(updatedStory.points) }
+            : story
+        )
+      );
+    } catch (err) {
+      console.error("Error updating done status:", err);
+      setStories(previousStories);
+    } finally {
+      setSavingDoneIds((prev) => prev.filter((id) => id !== storyId));
+    }
+  }
+
+  async function changePoints(storyId: string, direction: "up" | "down") {
+    if (savingPointIds.includes(storyId)) return;
+
+    const story = stories.find((item) => item.id === storyId);
+    if (!story) return;
+
+    const currentPoints = normalizePoints(story.points);
+    const nextPoints = direction === "up" ? nextFib(currentPoints) : prevFib(currentPoints);
+
+    if (nextPoints === currentPoints) return;
+
+    const previousStories = stories.map((item) => ({ ...item }));
+
+    setSavingPointIds((prev) => [...prev, storyId]);
+    setStories((prev) =>
+      prev.map((item) =>
+        item.id === storyId ? { ...item, points: nextPoints } : item
+      )
+    );
+
+    try {
+      const updatedStory = await api<Story>(`/stories/${storyId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ points: nextPoints }),
+      });
+
+      setStories((prev) =>
+        prev.map((item) =>
+          item.id === storyId
+            ? { ...updatedStory, points: normalizePoints(updatedStory.points) }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error("Error updating story points:", err);
+      setStories(previousStories);
+    } finally {
+      setSavingPointIds((prev) => prev.filter((id) => id !== storyId));
+    }
+  }
+
+  async function deleteStory(storyId: string) {
+    const previousStories = stories.map((story) => ({ ...story }));
 
     setStories((prev) => prev.filter((story) => story.id !== storyId));
     setStoryToDelete(null);
 
-    fetch(`http://127.0.0.1:8000/stories/${storyId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-      })
-      .catch((err) => {
-        console.error("Error deleting story:", err);
-        setStories(previousStories);
+    try {
+      await api<{ status: string }>(`/stories/${storyId}`, {
+        method: "DELETE",
       });
+    } catch (err) {
+      console.error("Error deleting story:", err);
+      setStories(previousStories);
+    }
   }
 
   function moveStory(index: number, direction: "up" | "down") {
-    const previousStories = [...stories];
-    const updatedStories = [...stories];
+    const previousStories = stories.map((story) => ({ ...story }));
+    const updatedStories = stories.map((story) => ({ ...story }));
     const targetIndex = direction === "up" ? index - 1 : index + 1;
 
     if (targetIndex < 0 || targetIndex >= updatedStories.length) return;
@@ -184,30 +292,21 @@ export default function ProductBacklogPage(): JSX.Element {
     ];
 
     setStories(updatedStories);
-    reorderStoriesOnBackend(updatedStories, previousStories);
+    void reorderStoriesOnBackend(updatedStories, previousStories);
   }
 
-  function reorderStoriesOnBackend(updatedStories: Story[], previousStories: Story[]) {
-    fetch("http://127.0.0.1:8000/stories/backlog/reorder", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify({
-        ordered_ids: updatedStories.map((story) => story.id),
-      }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-        return res.json();
-      })
-      .catch((err) => {
-        console.error("Error reordering stories:", err);
-        setStories(previousStories);
+  async function reorderStoriesOnBackend(updatedStories: Story[], previousStories: Story[]) {
+    try {
+      await api(`/stories/backlog/reorder`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ordered_ids: updatedStories.map((story) => story.id),
+        }),
       });
+    } catch (err) {
+      console.error("Error reordering stories:", err);
+      setStories(previousStories);
+    }
   }
 
   return (
@@ -247,17 +346,19 @@ export default function ProductBacklogPage(): JSX.Element {
           >
             Add Product Feature
           </h2>
+
           <div style={formRowStyle}>
             <input
               style={{
                 ...inputStyle,
-                background: isDark ? "#ffffff" : "#ffffff",
+                background: "#ffffff",
                 color: "#111827",
               }}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Feature title"
             />
+
             <input
               style={{
                 ...inputStyle,
@@ -268,18 +369,29 @@ export default function ProductBacklogPage(): JSX.Element {
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="Short description"
             />
-            <input
-              style={{
-                ...smallInputStyle,
-                background: "#ffffff",
-                color: "#111827",
-              }}
-              type="number"
-              min={0}
-              value={newPoints}
-              onChange={(e) => setNewPoints(Number(e.target.value))}
-              placeholder="Points"
-            />
+
+            <div style={verticalStepperStyle}>
+              <div style={verticalStepperValueStyle}>{newPoints}</div>
+              <div style={verticalStepperButtonsStyle}>
+                <button
+                  type="button"
+                  style={verticalArrowButtonStyle}
+                  onClick={() => setNewPoints((prev) => nextFib(prev))}
+                  disabled={newPoints === FIBONACCI_POINTS[FIBONACCI_POINTS.length - 1]}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  style={verticalArrowButtonStyle}
+                  onClick={() => setNewPoints((prev) => prevFib(prev))}
+                  disabled={newPoints === FIBONACCI_POINTS[0]}
+                >
+                  ▼
+                </button>
+              </div>
+            </div>
+
             <button style={primaryButtonStyle} onClick={createBacklogStory}>
               Add Feature
             </button>
@@ -374,146 +486,187 @@ export default function ProductBacklogPage(): JSX.Element {
               </thead>
 
               <tbody>
-                {stories.map((story, index) => (
-                  <tr key={story.id}>
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      {index + 1}
-                    </td>
+                {stories.map((story, index) => {
+                  const isSavingPoints = savingPointIds.includes(story.id);
+                  const storyPoints = normalizePoints(story.points);
 
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      <input
-                        style={cellInputStyle}
-                        defaultValue={story.title}
-                        onBlur={(e) => {
-                          const nextValue = e.target.value.trim();
-                          if (nextValue && nextValue !== story.title) {
-                            updateStoryOptimistically(story.id, { title: nextValue });
-                          }
+                  return (
+                    <tr key={story.id}>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
                         }}
-                      />
-                    </td>
+                      >
+                        {index + 1}
+                      </td>
 
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      <textarea
-                        style={descriptionTextareaStyle}
-                        defaultValue={story.description ?? ""}
-                        rows={2}
-                        onBlur={(e) => {
-                          const nextValue = e.target.value;
-                          if (nextValue !== (story.description ?? "")) {
-                            updateStoryOptimistically(story.id, { description: nextValue });
-                          }
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
                         }}
-                      />
-                    </td>
-
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      <input
-                        style={pointsInputStyle}
-                        type="number"
-                        min={0}
-                        defaultValue={story.points ?? 0}
-                        onBlur={(e) => {
-                          const nextValue = Number(e.target.value);
-                          if (!Number.isNaN(nextValue) && nextValue !== (story.points ?? 0)) {
-                            updateStoryOptimistically(story.id, { points: nextValue });
-                          }
-                        }}
-                      />
-                    </td>
-
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      <label style={doneCheckboxWrapperStyle}>
+                      >
                         <input
-                          style={checkboxStyle}
-                          type="checkbox"
-                          checked={story.isDone}
-                          onChange={(e) =>
-                            updateStoryOptimistically(story.id, {
-                              isDone: e.target.checked,
+                          style={cellInputStyle}
+                          value={story.title}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setStories((prev) =>
+                              prev.map((item) =>
+                                item.id === story.id ? { ...item, title: nextValue } : item
+                              )
+                            );
+                          }}
+                          onBlur={(e) => {
+                            const nextValue = e.target.value.trim();
+                            if (nextValue && nextValue !== story.title.trim()) {
+                              updateStoryOptimistically(story.id, { title: nextValue });
+                            } else {
+                              setStories((prev) =>
+                                prev.map((item) =>
+                                  item.id === story.id
+                                    ? { ...item, title: nextValue || story.title }
+                                    : item
+                                )
+                              );
+                            }
+                          }}
+                        />
+                      </td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
+                        }}
+                      >
+                        <textarea
+                          style={descriptionTextareaStyle}
+                          value={story.description ?? ""}
+                          rows={2}
+                          onChange={(e) => {
+                            const nextValue = e.target.value;
+                            setStories((prev) =>
+                              prev.map((item) =>
+                                item.id === story.id
+                                  ? { ...item, description: nextValue }
+                                  : item
+                              )
+                            );
+                          }}
+                          onBlur={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue !== (story.description ?? "")) {
+                              updateStoryOptimistically(story.id, { description: nextValue });
+                            }
+                          }}
+                        />
+                      </td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
+                        }}
+                      >
+                        <div style={verticalStepperStyle}>
+                          <div style={verticalStepperValueStyle}>{storyPoints}</div>
+                          <div style={verticalStepperButtonsStyle}>
+                            <button
+                              type="button"
+                              style={verticalArrowButtonStyle}
+                              onClick={() => void changePoints(story.id, "up")}
+                              disabled={
+                                isSavingPoints ||
+                                storyPoints === FIBONACCI_POINTS[FIBONACCI_POINTS.length - 1]
+                              }
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              style={verticalArrowButtonStyle}
+                              onClick={() => void changePoints(story.id, "down")}
+                              disabled={
+                                isSavingPoints || storyPoints === FIBONACCI_POINTS[0]
+                              }
+                            >
+                              ▼
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
+                        }}
+                      >
+                        <label style={doneCheckboxWrapperStyle}>
+                            <input
+                                style={checkboxStyle}
+                                type="checkbox"
+                                checked={story.isDone}
+                                onChange={(e) => void toggleDone(story.id, e.target.checked)}
+                            />
+                        </label>
+                      </td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
+                        }}
+                      >
+                        <div style={reorderButtonGroupStyle}>
+                          <button
+                            style={{
+                              ...secondaryButtonStyle,
+                              background: "#ffffff",
+                              ...(index === 0 ? disabledButtonStyle : {}),
+                            }}
+                            disabled={index === 0}
+                            onClick={() => moveStory(index, "up")}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            style={{
+                              ...secondaryButtonStyle,
+                              background: "#ffffff",
+                              ...(index === stories.length - 1 ? disabledButtonStyle : {}),
+                            }}
+                            disabled={index === stories.length - 1}
+                            onClick={() => moveStory(index, "down")}
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      </td>
+
+                      <td
+                        style={{
+                          ...tdStyle,
+                          borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
+                        }}
+                      >
+                        <button
+                          style={deleteButtonStyle}
+                          onClick={() =>
+                            setStoryToDelete({
+                              id: story.id,
+                              title: story.title,
                             })
                           }
-                        />
-                      </label>
-                    </td>
-
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      <div style={reorderButtonGroupStyle}>
-                        <button
-                          style={{
-                            ...secondaryButtonStyle,
-                            background: isDark ? "#ffffff" : "#ffffff",
-                            ...(index === 0 ? disabledButtonStyle : {}),
-                          }}
-                          disabled={index === 0}
-                          onClick={() => moveStory(index, "up")}
                         >
-                          ↑
+                          Delete
                         </button>
-                        <button
-                          style={{
-                            ...secondaryButtonStyle,
-                            background: "#ffffff",
-                            ...(index === stories.length - 1 ? disabledButtonStyle : {}),
-                          }}
-                          disabled={index === stories.length - 1}
-                          onClick={() => moveStory(index, "down")}
-                        >
-                          ↓
-                        </button>
-                      </div>
-                    </td>
-
-                    <td
-                      style={{
-                        ...tdStyle,
-                        borderBottom: isDark ? "1px solid #374151" : "1px solid #eee",
-                      }}
-                    >
-                      <button
-                        style={deleteButtonStyle}
-                        onClick={() =>
-                          setStoryToDelete({
-                            id: story.id,
-                            title: story.title,
-                          })
-                        }
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -563,7 +716,7 @@ export default function ProductBacklogPage(): JSX.Element {
                 <button
                   style={{
                     ...cancelButtonStyle,
-                    background: isDark ? "#ffffff" : "#ffffff",
+                    background: "#ffffff",
                     color: "#111",
                   }}
                   onClick={() => setStoryToDelete(null)}
@@ -573,7 +726,7 @@ export default function ProductBacklogPage(): JSX.Element {
 
                 <button
                   style={confirmDeleteButtonStyle}
-                  onClick={() => deleteStory(storyToDelete.id)}
+                  onClick={() => void deleteStory(storyToDelete.id)}
                 >
                   Delete
                 </button>
@@ -635,16 +788,6 @@ const formRowStyle: CSSProperties = {
 const inputStyle: CSSProperties = {
   flex: 1,
   minWidth: "260px",
-  padding: "16px 18px",
-  borderRadius: "12px",
-  border: "none",
-  outline: "none",
-  fontSize: "24px",
-  boxSizing: "border-box",
-};
-
-const smallInputStyle: CSSProperties = {
-  width: "140px",
   padding: "16px 18px",
   borderRadius: "12px",
   border: "none",
@@ -756,13 +899,44 @@ const descriptionTextareaStyle: CSSProperties = {
   lineHeight: 1.35,
 };
 
-const pointsInputStyle: CSSProperties = {
-  width: "110px",
-  padding: "14px 16px",
-  borderRadius: "10px",
-  border: "1px solid #ddd",
+const verticalStepperStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "stretch",
+  background: "#ffffff",
+  border: "1px solid #d1d5db",
+  borderRadius: "12px",
+  overflow: "hidden",
+  minWidth: "86px",
+};
+
+const verticalStepperValueStyle: CSSProperties = {
+  minWidth: "46px",
+  padding: "10px 12px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
   fontSize: "24px",
-  boxSizing: "border-box",
+  fontWeight: 700,
+  color: "#111827",
+  background: "#ffffff",
+};
+
+const verticalStepperButtonsStyle: CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  borderLeft: "1px solid #d1d5db",
+};
+
+const verticalArrowButtonStyle: CSSProperties = {
+  width: "34px",
+  height: "25px",
+  border: "none",
+  background: "#ffffff",
+  color: "#111827",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: 700,
+  lineHeight: 1,
 };
 
 const doneCheckboxWrapperStyle: CSSProperties = {

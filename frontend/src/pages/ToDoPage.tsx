@@ -514,6 +514,7 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
+  useDroppable,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -527,6 +528,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
+import { api } from "../api/client";
 
 interface Task {
   id: string;
@@ -553,12 +555,6 @@ interface PendingDelete {
   taskId: string;
   status: keyof Board;
   title: string;
-}
-
-const API = "http://127.0.0.1:8000";
-
-function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem("token")}` };
 }
 
 function cloneBoard(board: Board): Board {
@@ -589,6 +585,10 @@ function normalizePositions(tasks: Task[]): Task[] {
   }));
 }
 
+function isColumnId(id: string): id is keyof Board {
+  return id === "todo" || id === "in_progress" || id === "done";
+}
+
 export default function ToDoPage(): JSX.Element {
   const { projectId } = useParams();
   const { theme } = useTheme();
@@ -614,24 +614,35 @@ export default function ToDoPage(): JSX.Element {
 
   useEffect(() => {
     if (!projectId) return;
-    fetch(`${API}/projects/${projectId}/board`, { headers: authHeaders() })
-      .then((r) => r.json())
+
+    api<{
+      story_id: string;
+      todo: Task[];
+      in_progress: Task[];
+      done: Task[];
+    }>(`/projects/${projectId}/board`)
       .then((data) => {
         setStoryId(data.story_id);
         setBoard({
           todo: normalizePositions(
             [...(data.todo || [])].sort(
-              (a: Task, b: Task) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER)
+              (a, b) =>
+                (a.position ?? Number.MAX_SAFE_INTEGER) -
+                (b.position ?? Number.MAX_SAFE_INTEGER)
             )
           ),
           in_progress: normalizePositions(
             [...(data.in_progress || [])].sort(
-              (a: Task, b: Task) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER)
+              (a, b) =>
+                (a.position ?? Number.MAX_SAFE_INTEGER) -
+                (b.position ?? Number.MAX_SAFE_INTEGER)
             )
           ),
           done: normalizePositions(
             [...(data.done || [])].sort(
-              (a: Task, b: Task) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER)
+              (a, b) =>
+                (a.position ?? Number.MAX_SAFE_INTEGER) -
+                (b.position ?? Number.MAX_SAFE_INTEGER)
             )
           ),
         });
@@ -641,16 +652,15 @@ export default function ToDoPage(): JSX.Element {
 
   useEffect(() => {
     if (!projectId) return;
-    fetch(`${API}/projects/${projectId}/members`, { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : []))
+
+    api<Member[]>(`/projects/${projectId}/members`)
       .then((data) => setMembers(Array.isArray(data) ? data : []))
       .catch(() => setMembers([]));
   }, [projectId]);
 
   function persistTask(taskId: string, payload: Partial<Task>) {
-    fetch(`${API}/tasks/${taskId}`, {
+    api<Task>(`/tasks/${taskId}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(payload),
     }).catch((err) => console.error("PATCH error:", err));
   }
@@ -664,12 +674,12 @@ export default function ToDoPage(): JSX.Element {
   function createTask(status: keyof Board) {
     const title = inputs[status].trim();
     if (!title || !projectId || !storyId) return;
+
     const assignee_id = assignees[status] || null;
     const nextPosition = board[status].length;
 
-    fetch(`${API}/tasks`, {
+    api<Task>(`/tasks`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({
         title,
         description: "",
@@ -679,7 +689,6 @@ export default function ToDoPage(): JSX.Element {
         position: nextPosition,
       }),
     })
-      .then((r) => r.json())
       .then((data) => {
         setBoard((prev) => {
           const updatedColumn = normalizePositions([
@@ -692,11 +701,13 @@ export default function ToDoPage(): JSX.Element {
               position: data.position ?? nextPosition,
             },
           ]);
+
           return {
             ...prev,
             [status]: updatedColumn,
           };
         });
+
         setInputs((prev) => ({ ...prev, [status]: "" }));
         setAssignees((prev) => ({ ...prev, [status]: "" }));
       })
@@ -710,9 +721,9 @@ export default function ToDoPage(): JSX.Element {
       return { ...prev, [status]: updatedColumn };
     });
 
-    fetch(`${API}/tasks/${taskId}`, { method: "DELETE", headers: authHeaders() }).catch((err) =>
-      console.error("Error deleting task:", err)
-    );
+    api<{ status: string }>(`/tasks/${taskId}`, {
+      method: "DELETE",
+    }).catch((err) => console.error("Error deleting task:", err));
   }
 
   function reassignTask(taskId: string, newAssigneeId: string | null) {
@@ -733,6 +744,7 @@ export default function ToDoPage(): JSX.Element {
     const taskId = String(event.active.id);
     const column = findTaskColumn(board, taskId);
     if (!column) return;
+
     const task = board[column].find((t) => String(t.id) === taskId) || null;
     setActiveTask(task);
   }
@@ -747,11 +759,7 @@ export default function ToDoPage(): JSX.Element {
     const activeColumn = findTaskColumn(board, activeId);
     if (!activeColumn) return;
 
-    const overColumn =
-      (["todo", "in_progress", "done"] as (keyof Board)[]).includes(overId as keyof Board)
-        ? (overId as keyof Board)
-        : findTaskColumn(board, overId);
-
+    const overColumn = isColumnId(overId) ? overId : findTaskColumn(board, overId);
     if (!overColumn) return;
     if (activeColumn === overColumn) return;
 
@@ -759,11 +767,7 @@ export default function ToDoPage(): JSX.Element {
       const currentActiveColumn = findTaskColumn(prev, activeId);
       if (!currentActiveColumn) return prev;
 
-      const targetColumn =
-        (["todo", "in_progress", "done"] as (keyof Board)[]).includes(overId as keyof Board)
-          ? (overId as keyof Board)
-          : findTaskColumn(prev, overId);
-
+      const targetColumn = isColumnId(overId) ? overId : findTaskColumn(prev, overId);
       if (!targetColumn || currentActiveColumn === targetColumn) return prev;
 
       const sourceItems = [...prev[currentActiveColumn]];
@@ -799,23 +803,18 @@ export default function ToDoPage(): JSX.Element {
     const activeColumn = findTaskColumn(board, activeId);
     if (!activeColumn) return;
 
-    const overColumn =
-      (["todo", "in_progress", "done"] as (keyof Board)[]).includes(overId as keyof Board)
-        ? (overId as keyof Board)
-        : findTaskColumn(board, overId);
-
+    const overColumn = isColumnId(overId) ? overId : findTaskColumn(board, overId);
     if (!overColumn) return;
 
     const nextBoard = cloneBoard(board);
 
     if (activeColumn === overColumn) {
       const oldIndex = getTaskIndex(nextBoard, activeColumn, activeId);
-      const newIndex =
-        (["todo", "in_progress", "done"] as (keyof Board)[]).includes(overId as keyof Board)
-          ? nextBoard[overColumn].length - 1
-          : getTaskIndex(nextBoard, overColumn, overId);
+      const newIndex = isColumnId(overId)
+        ? nextBoard[activeColumn].length - 1
+        : getTaskIndex(nextBoard, activeColumn, overId);
 
-      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
 
       nextBoard[activeColumn] = normalizePositions(
         arrayMove(nextBoard[activeColumn], oldIndex, newIndex)
@@ -834,13 +833,12 @@ export default function ToDoPage(): JSX.Element {
 
     const [movedTask] = sourceItems.splice(sourceIndex, 1);
 
-    const targetIndex =
-      (["todo", "in_progress", "done"] as (keyof Board)[]).includes(overId as keyof Board)
-        ? targetItems.length
-        : Math.max(
-            0,
-            targetItems.findIndex((task) => String(task.id) === overId)
-          );
+    const targetIndex = isColumnId(overId)
+      ? targetItems.length
+      : Math.max(
+          0,
+          targetItems.findIndex((task) => String(task.id) === overId)
+        );
 
     targetItems.splice(targetIndex, 0, { ...movedTask, status: overColumn });
 
@@ -875,7 +873,6 @@ export default function ToDoPage(): JSX.Element {
 
         .task-input::placeholder { color: #6b7280; }
 
-        /* ── Ollie Todo ── */
         @keyframes ollie-float {
           0%,100%{transform:translateY(0px) rotate(-2deg)}
           50%{transform:translateY(-10px) rotate(2deg)}
@@ -912,7 +909,6 @@ export default function ToDoPage(): JSX.Element {
         .books-arm-l { animation:t-wave-books 2.8s ease-in-out infinite;       transform-origin:16px 36px; }
         .books-arm-r { animation:t-wave-books 2.8s ease-in-out infinite 0.2s;  transform-origin:52px 36px; }
 
-        /* Ollie InProgress */
         @keyframes prog-float {
           0%,100%{transform:translateY(0px) rotate(-1.5deg)}
           50%{transform:translateY(-8px) rotate(1.5deg)}
@@ -944,7 +940,6 @@ export default function ToDoPage(): JSX.Element {
         .prog-t5 { animation:t-wave-slow 2.5s ease-in-out infinite 0.15s; transform-origin:41px 52px; }
         .prog-t6 { animation:t-wave-med  2.2s ease-in-out infinite 0.05s; transform-origin:46px 48px; }
 
-        /* Ollie Done */
         @keyframes done-bounce {
           0%,100%{transform:translateY(0px) rotate(-2deg) scale(1)}
           25%{transform:translateY(-14px) rotate(3deg) scale(1.07)}
@@ -1030,11 +1025,7 @@ export default function ToDoPage(): JSX.Element {
           <DragOverlay>
             {activeTask ? (
               <div style={{ width: "100%" }}>
-                <TaskCardView
-                  task={activeTask}
-                  assigneeName={activeAssigneeName}
-                  dragging
-                />
+                <TaskCardView task={activeTask} assigneeName={activeAssigneeName} dragging />
               </div>
             ) : null}
           </DragOverlay>
@@ -1269,6 +1260,7 @@ function Column({
   onReassign,
 }: ColumnProps) {
   const bgColor = id === "todo" ? "#ef4444" : id === "in_progress" ? "#eab308" : "#22c55e";
+  const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
     <div
@@ -1335,8 +1327,18 @@ function Column({
         </button>
       </div>
 
-      <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
-        <div style={stackContainer}>
+      <div
+        ref={setNodeRef}
+        style={{
+          ...stackContainer,
+          minHeight: 220,
+          borderRadius: 16,
+          padding: 6,
+          background: isOver ? "rgba(255,255,255,0.18)" : "transparent",
+          transition: "background 0.15s ease",
+        }}
+      >
+        <SortableContext items={tasks.map((task) => task.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <SortableTaskCard
               key={task.id}
@@ -1354,8 +1356,8 @@ function Column({
               onReassign={onReassign}
             />
           ))}
-        </div>
-      </SortableContext>
+        </SortableContext>
+      </div>
     </div>
   );
 }
@@ -1520,7 +1522,6 @@ function TaskCardView({
   );
 }
 
-/* Styles */
 const pageStyle: CSSProperties = {
   color: "white",
   padding: 40,
