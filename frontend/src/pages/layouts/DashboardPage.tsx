@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+/* import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { CSSProperties, JSX } from "react";
@@ -984,12 +984,12 @@ export default function DashboardPage(): JSX.Element {
 
             {projectId && resolvedRole && (
               <section style={styles.calendarSection}>
-                <DashboardCalendarPreview
-                  projectId={projectId}
-                  role={resolvedRole}
-                  title="Project Calendar"
-                  subtitle="View this month’s schedule at a glance. Click anywhere on the calendar to open the full calendar page."
-                />
+              <DashboardCalendarPreview
+                projectId={projectId}
+                role={resolvedRole}
+                title="All Projects Calendar"
+                subtitle="View this week’s events across all projects. Click anywhere to open the full calendar page."
+              />
               </section>
             )}
 
@@ -1027,4 +1027,352 @@ export default function DashboardPage(): JSX.Element {
       </main>
     </SidebarLayout>
   );
-}
+} */ 
+
+  import { motion, AnimatePresence } from "framer-motion";
+  import { useEffect, useMemo, useState } from "react";
+  import { useNavigate, useParams } from "react-router-dom";
+  import type { CSSProperties, JSX } from "react";
+  import { me } from "../../api/auth";
+  import { listProjects, type Project } from "../../api/projects";
+  import SidebarLayout from "../../components/SidebarLayout";
+  import DashboardCalendarPreview from "../../components/DashboardCalendarPreview";
+  import { useTheme } from "../ThemeContext";
+  
+  type User = {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+  
+  // ─── Preview Components ───────────────────────────────────────────────────────
+  
+  function TaskBoardPreview({ isDark }: { isDark: boolean }) {
+    const cols = [
+      { label: "TO DO", color: "#ef4444", items: ["Write unit tests", "Review PR #42"] },
+      { label: "IN PROGRESS", color: "#eab308", items: ["API integration", "Fix nav bug"] },
+      { label: "DONE", color: "#22c55e", items: ["Setup CI/CD"] },
+    ];
+    return (
+      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        {cols.map((col) => (
+          <div key={col.label} style={{ flex: 1, borderRadius: 10, background: col.color, padding: "8px 8px 10px", minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "white", letterSpacing: 1, marginBottom: 6, textTransform: "uppercase" }}>{col.label}</div>
+            {col.items.map((item) => (
+              <div key={item} style={{ background: "rgba(255,255,255,0.92)", borderRadius: 6, padding: "5px 7px", marginBottom: 5, fontSize: 10, fontWeight: 600, color: "#111827", lineHeight: 1.3 }}>{item}</div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  
+  function EducationPreview({ isDark }: { isDark: boolean }) {
+    const modules = [
+      { title: "Scrum Basics", progress: 100, color: "#22c55e" },
+      { title: "Sprint Planning", progress: 65, color: "#6366f1" },
+      { title: "Retrospectives", progress: 30, color: "#f97316" },
+      { title: "Daily Standups", progress: 0, color: "#94a3b8" },
+    ];
+    return (
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+        {modules.map((m) => (
+          <div key={m.title}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: isDark ? "rgba(255,255,255,0.85)" : "#374151" }}>{m.title}</span>
+              <span style={{ fontSize: 11, color: isDark ? "rgba(255,255,255,0.5)" : "#6b7280" }}>{m.progress}%</span>
+            </div>
+            <div style={{ height: 6, borderRadius: 99, background: isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${m.progress}%`, background: m.color, borderRadius: 99 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  
+  function BurndownPreview({ isDark }: { isDark: boolean }) {
+    const points = [100, 88, 72, 64, 50, 38, 22, 14, 5];
+    const ideal  = [100, 87, 75, 62, 50, 37, 25, 12, 0];
+    const W = 200, H = 80;
+    const toX = (i: number) => (i / (points.length - 1)) * W;
+    const toY = (v: number) => H - (v / 100) * H;
+    const toPath = (arr: number[]) =>
+      arr.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(" ");
+    return (
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 12 }}>
+          {[
+            { label: "Total", value: "24", accent: "#6366f1" },
+            { label: "Done",  value: "14", accent: "#22c55e" },
+            { label: "Left",  value: "10", accent: "#f97316" },
+          ].map((s) => (
+            <div key={s.label} style={{ background: isDark ? "rgba(255,255,255,0.06)" : "#f8fafc", borderRadius: 10, padding: "8px 6px", textAlign: "center", border: `1px solid ${s.accent}28` }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: s.accent, lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: isDark ? "rgba(255,255,255,0.5)" : "#6b7280", marginTop: 3 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible", display: "block" }}>
+          <path d={toPath(ideal)}  stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="4 3" fill="none" />
+          <path d={toPath(points)} stroke="#6366f1" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          {points.map((v, i) => <circle key={i} cx={toX(i)} cy={toY(v)} r="3" fill="#6366f1" />)}
+        </svg>
+        <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
+          <span style={{ fontSize: 10, color: "#6366f1", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 14, height: 3, background: "#6366f1", display: "inline-block", borderRadius: 2 }} />Actual
+          </span>
+          <span style={{ fontSize: 10, color: "#94a3b8", display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 14, height: 2, background: "#94a3b8", display: "inline-block", borderRadius: 2 }} />Ideal
+          </span>
+        </div>
+      </div>
+    );
+  }
+  
+  // ─── Helpers ──────────────────────────────────────────────────────────────────
+  
+  function getLandingPathForRole(projectId: string, role: string): string {
+    switch (role) {
+      case "product-owner":    return `/projects/${projectId}/${role}/product-owner-dashboard`;
+      case "scrum-facilitator": return `/projects/${projectId}/${role}/scrum-facilitator-dashboard`;
+      default:                  return `/projects/${projectId}/${role}/developer-dashboard`;
+    }
+  }
+  
+  // ─── Page ─────────────────────────────────────────────────────────────────────
+  
+  export default function DashboardPage(): JSX.Element {
+    const navigate = useNavigate();
+    const { projectId, role } = useParams();
+    const { theme } = useTheme();
+    const isDark = theme === "dark";
+  
+    const [user, setUser] = useState<User | null>(() => {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    });
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [loadingProjects, setLoadingProjects] = useState(false);
+    const [projectError, setProjectError] = useState("");
+    const [revealed, setRevealed] = useState(() => sessionStorage.getItem("dashboard_revealed") === "true");
+  
+    useEffect(() => {
+      const token = localStorage.getItem("token");
+      if (!token) { navigate("/login", { replace: true }); return; }
+      me(token)
+        .then((u: User) => { setUser(u); localStorage.setItem("user", JSON.stringify(u)); })
+        .catch(() => { localStorage.removeItem("token"); localStorage.removeItem("user"); navigate("/login", { replace: true }); });
+    }, [navigate]);
+  
+    useEffect(() => {
+      if (!user) return;
+      setLoadingProjects(true);
+      listProjects()
+        .then(setProjects)
+        .catch((e: any) => setProjectError(e?.message ?? "Unable to load projects."))
+        .finally(() => setLoadingProjects(false));
+    }, [user, projectId]);
+  
+    const activeProject = useMemo(
+      () => (projectId ? projects.find((p) => p.id === projectId) ?? null : projects[0] ?? null),
+      [projects, projectId]
+    );
+  
+    const resolvedRole =
+      role ??
+      (user?.role === "Product Owner"
+        ? "product-owner"
+        : user?.role === "Scrum Facilitator"
+        ? "scrum-facilitator"
+        : "developer");
+  
+    useEffect(() => {
+      if (loadingProjects || projects.length === 0) return;
+      const exists = projectId ? projects.some((p) => p.id === projectId) : false;
+      if (!projectId || !exists) navigate(getLandingPathForRole(projects[0].id, resolvedRole), { replace: true });
+    }, [projects, projectId, resolvedRole, loadingProjects, navigate]);
+  
+    const effectiveProjectId = projectId ?? activeProject?.id ?? "";
+    const todoPath     = effectiveProjectId && resolvedRole ? `/projects/${effectiveProjectId}/${resolvedRole}/to-do/planning` : "";
+    const progressPath = effectiveProjectId && resolvedRole ? `/projects/${effectiveProjectId}/${resolvedRole}/progress` : "";
+    const eduPath      = effectiveProjectId && resolvedRole ? `/projects/${effectiveProjectId}/${resolvedRole}/education` : "";
+  
+    const dismiss = () => { sessionStorage.setItem("dashboard_revealed", "true"); setRevealed(true); };
+  
+    const bg = isDark
+      ? "radial-gradient(circle at top left, rgba(99,102,241,0.14), transparent 28%), linear-gradient(180deg, #0b0f17 0%, #0f172a 45%, #0b0f17 100%)"
+      : "#f1f5f9";
+  
+    const card: CSSProperties = {
+      background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
+      border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(17,24,39,0.08)"}`,
+      borderRadius: 20,
+      padding: 20,
+      boxShadow: isDark ? "0 12px 32px rgba(0,0,0,0.18)" : "0 4px 24px rgba(15,23,42,0.07)",
+      transition: "box-shadow 0.15s",
+    };
+    const hoverShadow  = isDark ? "0 18px 44px rgba(0,0,0,0.3)" : "0 8px 32px rgba(15,23,42,0.13)";
+    const cardTitle: CSSProperties = { margin: 0, fontSize: 17, fontWeight: 700, color: isDark ? "white" : "#111827" };
+    const cardDesc: CSSProperties  = { margin: "5px 0 0", fontSize: 13, lineHeight: 1.5, color: isDark ? "rgba(255,255,255,0.58)" : "#6b7280" };
+    const eyebrow: CSSProperties   = { margin: "0 0 4px", fontSize: 11, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase" as const, color: isDark ? "rgba(255,255,255,0.38)" : "#9ca3af" };
+    const sectionLabel: CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" as const, color: isDark ? "rgba(255,255,255,0.38)" : "#9ca3af", margin: "0 0 12px" };
+  
+    const clickableCard = (path: string): CSSProperties => ({
+      ...card,
+      cursor: path ? "pointer" : "default",
+    });
+  
+    const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>, active: boolean) => {
+      if (active) (e.currentTarget as HTMLDivElement).style.boxShadow = hoverShadow;
+    };
+    const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+      (e.currentTarget as HTMLDivElement).style.boxShadow = isDark ? "0 12px 32px rgba(0,0,0,0.18)" : "0 4px 24px rgba(15,23,42,0.07)";
+    };
+  
+    return (
+      <SidebarLayout>
+        <main style={{ width: "100%", minHeight: "100vh", padding: 24, background: bg, color: isDark ? "white" : "#111827", position: "relative" }}>
+  
+          {/* ── Splash overlay ── */}
+          <AnimatePresence>
+            {!revealed && (
+              <motion.div
+                style={{ position: "absolute", inset: 0, zIndex: 30, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "70px 24px", background: isDark ? "rgba(11,15,23,0.62)" : "rgba(241,245,249,0.82)", cursor: "pointer", backdropFilter: "blur(6px)" }}
+                initial={{ opacity: 1 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}
+                onClick={dismiss}
+              >
+                <motion.div
+                  style={{ width: "min(580px,94%)", borderRadius: 28, padding: "44px 36px", textAlign: "center", background: isDark ? "rgba(255,255,255,0.07)" : "#ffffff", border: `1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(17,24,39,0.08)"}`, backdropFilter: "blur(24px)", boxShadow: isDark ? "0 24px 70px rgba(0,0,0,0.4)" : "0 24px 70px rgba(15,23,42,0.12)" }}
+                  initial={{ opacity: 0, y: 28, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.97 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }} onClick={(e) => e.stopPropagation()}
+                >
+                  <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: isDark ? "rgba(255,255,255,0.4)" : "#9ca3af" }}>Sprintwheel</p>
+                  <h1 style={{ margin: "0 0 12px", fontSize: "clamp(1.8rem,4vw,2.8rem)", fontWeight: 800, color: isDark ? "white" : "#111827", lineHeight: 1.1 }}>
+                    Hi {user?.name ?? "there"}, welcome!
+                  </h1>
+                  <p style={{ margin: "0 auto 24px", maxWidth: 420, fontSize: 15, lineHeight: 1.6, color: isDark ? "rgba(255,255,255,0.65)" : "#4b5563" }}>
+                    Sprint snapshots, task board, learning resources, and your calendar — all in one place.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); dismiss(); }}
+                    style={{ padding: "12px 28px", borderRadius: 999, border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(17,24,39,0.1)"}`, background: isDark ? "rgba(99,102,241,0.28)" : "#eef2ff", color: isDark ? "white" : "#4f46e5", fontSize: 14, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Enter Workspace →
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+  
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}>
+  
+            {/* ── Header ── */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+              <div>
+                <motion.h1
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+                  style={{ margin: 0, fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 800, color: isDark ? "white" : "#111827", lineHeight: 1.05 }}
+                >
+                  Dashboard
+                </motion.h1>
+                <p style={{ margin: "5px 0 0", fontSize: 14, color: isDark ? "rgba(255,255,255,0.55)" : "#6b7280" }}>Your sprint workspace at a glance</p>
+              </div>
+              <div style={{ ...card, padding: "12px 18px", minWidth: 200 }}>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: isDark ? "rgba(255,255,255,0.38)" : "#9ca3af" }}>Active Project</p>
+                <p style={{ margin: "4px 0 0", fontSize: 16, fontWeight: 700, color: isDark ? "white" : "#111827" }}>{activeProject?.name ?? "—"}</p>
+                <p style={{ margin: "3px 0 0", fontSize: 12, color: isDark ? "rgba(255,255,255,0.45)" : "#6b7280" }}>
+                  {loadingProjects ? "Loading…" : projectError ? projectError : `${projects.length} project${projects.length === 1 ? "" : "s"}`}
+                </p>
+              </div>
+            </div>
+  
+            {/* ── Calendar ── */}
+            {projectId && resolvedRole && (
+              <div style={{ marginBottom: 28 }}>
+                <p style={sectionLabel}>📅 Calendar</p>
+                <DashboardCalendarPreview
+                  projectId={projectId}
+                  role={resolvedRole}
+                  title="All Projects Calendar"
+                  subtitle="This week's events across all projects. Click to open the full calendar."
+                />
+              </div>
+            )}
+  
+            {/* ── Cards grid (3 cards: no Sprint Overview) ── */}
+            <p style={sectionLabel}>📋 Workspace</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))", gap: 16 }}>
+  
+              {/* To-Do / Planning */}
+              <div
+                style={clickableCard(todoPath)}
+                onClick={() => todoPath && navigate(todoPath)}
+                onMouseEnter={(e) => handleMouseEnter(e, !!todoPath)}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div>
+                    <p style={eyebrow}>Task Board</p>
+                    <h2 style={cardTitle}>To-Do / Planning</h2>
+                    <p style={cardDesc}>Manage sprint tasks, board movement, and team workflow.</p>
+                  </div>
+                  {todoPath && <span style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,0.38)" : "#9ca3af", flexShrink: 0, marginTop: 2 }}>↗</span>}
+                </div>
+                <TaskBoardPreview isDark={isDark} />
+              </div>
+  
+              {/* Education */}
+              <div
+                style={clickableCard(eduPath)}
+                onClick={() => eduPath && navigate(eduPath)}
+                onMouseEnter={(e) => handleMouseEnter(e, !!eduPath)}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div>
+                    <p style={eyebrow}>Scrum Edu</p>
+                    <h2 style={cardTitle}>Education</h2>
+                    <p style={cardDesc}>Learning materials and platform support resources.</p>
+                  </div>
+                  {eduPath && <span style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,0.38)" : "#9ca3af", flexShrink: 0, marginTop: 2 }}>↗</span>}
+                </div>
+                <EducationPreview isDark={isDark} />
+              </div>
+  
+              {/* Progress Insights */}
+              <div
+                style={clickableCard(progressPath)}
+                onClick={() => progressPath && navigate(progressPath)}
+                onMouseEnter={(e) => handleMouseEnter(e, !!progressPath)}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div>
+                    <p style={eyebrow}>Burndown</p>
+                    <h2 style={cardTitle}>Progress Insights</h2>
+                    <p style={cardDesc}>Progress trends, delivery health, and momentum.</p>
+                  </div>
+                  {progressPath && <span style={{ fontSize: 16, color: isDark ? "rgba(255,255,255,0.38)" : "#9ca3af", flexShrink: 0, marginTop: 2 }}>↗</span>}
+                </div>
+                <BurndownPreview isDark={isDark} />
+              </div>
+  
+            </div>
+  
+            {/* ── Empty state ── */}
+            {projects.length === 0 && !loadingProjects && !projectError && (
+              <div style={{ ...card, marginTop: 20, textAlign: "center", padding: 40 }}>
+                <p style={{ fontSize: 30, margin: "0 0 10px" }}>🚀</p>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: isDark ? "white" : "#111827" }}>No Projects Yet</h3>
+                <p style={{ margin: "8px 0 0", fontSize: 13, color: isDark ? "rgba(255,255,255,0.5)" : "#6b7280" }}>Once a project is created, it will appear here.</p>
+              </div>
+            )}
+  
+          </motion.div>
+        </main>
+      </SidebarLayout>
+    );
+  }

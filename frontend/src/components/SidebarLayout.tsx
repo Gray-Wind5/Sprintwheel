@@ -308,6 +308,7 @@ function getRoleMenuItems(basePath: string, role: RoleKey): SidebarItem[] {
     { icon: "📧", label: "Communication", path: `${basePath}/communication` },
     { icon: "📊", label: "Progress", path: `${basePath}/progress` },
     { icon: "📁", label: "Project Details", path: `${basePath}/project-details` },
+    { icon: "🗂️", label: "Product Backlog", path: `${basePath}/product-backlog` },
     { icon: "📅", label: "Calendar", path: `${basePath}/calendar` },
     { icon: "📚", label: "Education", path: `${basePath}/education` },
     { icon: "⚙️", label: "Settings", path: `${basePath}/settings` },

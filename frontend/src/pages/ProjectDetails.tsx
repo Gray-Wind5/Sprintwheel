@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
+import { api } from "../api/client";
 
 type Member = {
   user_id: string;
@@ -68,13 +69,13 @@ const featureOptions = [
   "workflow automation",
 ];
 
-const API = "http://127.0.0.1:8000";
+/* const API = "http://127.0.0.1:8000";
 
 function authHeaders() {
   return {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
   };
-}
+} */ 
 
 function formatDeadline(dateString: string): string {
   if (!dateString) return "—";
@@ -130,15 +131,12 @@ export default function ProjectDetailsPage(): JSX.Element {
   useEffect(() => {
     if (!projectId) return;
 
-    fetch(`${API}/projects/${projectId}/members`, {
-      headers: authHeaders(),
-    })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setMembers(Array.isArray(data) ? data : []))
-      .catch((error) => {
-        console.error("Failed to fetch project members:", error);
-        setMembers([]);
-      });
+    api<Member[]>(`/projects/${projectId}/members`)
+    .then((data) => setMembers(Array.isArray(data) ? data : []))
+    .catch((error) => {
+      console.error("Failed to fetch project members:", error);
+      setMembers([]);
+    });
   }, [projectId]);
 
   const handleChange = (
@@ -445,29 +443,15 @@ export default function ProjectDetailsPage(): JSX.Element {
 
     setAddingGeneratedIds((prev) => [...prev, item.tempId]);
 
-    fetch(`${API}/stories/backlog`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(),
-      },
-      body: JSON.stringify({
-        project_id: projectId,
-        title: item.title,
-        description: item.description,
-        points: item.points,
-        priority: 1,
-      }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => null);
-
-        if (!res.ok) {
-          console.error("Create backlog story failed:", data);
-          throw new Error("Failed to create backlog story");
-        }
-
-        return data;
+    api(`/stories/backlog`, {
+        method: "POST",
+        body: JSON.stringify({
+          project_id: projectId,
+          title: item.title,
+          description: item.description,
+          points: item.points,
+          priority: 1,
+        }),
       })
       .then(() => {
         setAddedGeneratedIds((prev) => [...prev, item.tempId]);
