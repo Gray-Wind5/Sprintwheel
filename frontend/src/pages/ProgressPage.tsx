@@ -1,5 +1,5 @@
 import{ useState, useEffect, type CSSProperties, type JSX } from "react";
-import SprintBurndownChart from "../components/SprintBurndownChart"; //FOR STATIC OLD ONE, PLS KEEP FOR NOW
+//import SprintBurndownChart from "../components/SprintBurndownChart"; //FOR STATIC OLD ONE, PLS KEEP FOR NOW
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
 
@@ -13,15 +13,35 @@ export default function ProgressPage(): JSX.Element {
     const isDark = theme === "dark";
 
     const containerStyle: CSSProperties = {
+
+        //display: "flex",
+        //flexDirection: "column",
+        
         padding: 40,
         minHeight: "100vh",
         background: isDark ? "#0b0f17" : "#f8fafc",
         color: isDark ? "white" : "#111827",
     };
 
+    const mainContentStyle: CSSProperties = {
+        display:  "flex",
+        gap: "24px",
+        alignItems: "flex-start",
+        width: "100%",
+        marginTop: "24px",
+    }
+
     const chartWrapperStyle: CSSProperties = {
+        flex: 3,
+
+        //display: "flex",
+        //gap: "24px",
+        //alignItems: "flext-start",
+        //width: "100%",
+
         padding: 40,
         marginTop: 16,
+        marginBottom: 30,
         borderRadius: 16,
         background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
         border: isDark
@@ -29,8 +49,21 @@ export default function ProgressPage(): JSX.Element {
             : "1px solid rgba(17,24,39,0.1)",
     };
 
+    const velocityBlockStyle: CSSProperties = {
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      gap: "20px",
+    }
+
     const velocityCardStyle: CSSProperties = {
-      padding: 40,
+      //width: "200px",
+      //flex: "none",
+
+      //minWidth: "240px",
+      //flex: "none",
+
+      padding: 20,
       marginTop: 16,
       borderRadius: 16,
       background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
@@ -78,77 +111,84 @@ export default function ProgressPage(): JSX.Element {
           {loading ? "Loading..." : `Sprint ${sprintNumber} Burndown`}
         </h1>
 
-        <div style={ chartWrapperStyle }>
-          {!sprintId ? (
-              <p style={{ color: "#111" }}>No active sprint found for this project.</p>
-            ) : loading ? (
-              <p style={{ color: "#111" }}>Fetching burndown array...</p>
-            ) : chartData.length > 0 ? (
-              <BurndownChartUI data={chartData} />
-            ) : (
-              <p style={{ color: "#111" }}>No data found for this sprint.</p>
-            )}
-        </div>
+        <div style={mainContentStyle}>
 
-        <div style={{ display: "flex", gap: "20px", marginBottom: "30px" }}>
-          <div style={velocityCardStyle}>
-            <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8}}>
-              Current Velocity
-            </h3>
-            <p 
-              style={{ 
-                margin: "10px 0 0 0", 
-                fontSize: "42px", 
-                fontWeight: 800,
-                color: "#7C4DFF" 
-              }}
-            >
-              {loading ? "--" : velocity}
-              <span 
-                style={{
-                  fontSize: "18px", 
-                  fontWeight: 400, 
-                  marginLeft: "8px",
-                  //color: "white" 
-                }}
-              >
-                pts
-              </span>
-            </p>
+          <div style={ chartWrapperStyle }>
+            {!sprintId ? (
+                <p style={{ color: "#7C4DFF" }}>No active sprint found for this project.</p>
+              ) : loading ? (
+                <p style={{ color: "#7C4DFF" }}>Fetching burndown data...</p>
+              ) : chartData.length > 0 ? (
+                <BurndownChartUI data={chartData} />
+              ) : (
+                <p style={{ color: "#7C4DFF" }}>No data found for this sprint.</p>
+              )}
           </div>
 
-          <div style={velocityCardStyle}>
-            <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8 }}>
-              Expected Velocity
-            </h3>
-            <p 
-              style={{ 
-                margin: "10px 0 0 0", 
-                fontSize: "42px", 
-                fontWeight: 800, 
-                color: "#94A3B8" 
-              }}
-            >
-              {loading ? "--" : expectedVelocity}
-              <span 
+          <div style={velocityBlockStyle}>
+            <div style={velocityCardStyle}>
+              <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8}}>
+                Current Velocity
+              </h3>
+              <p 
                 style={{ 
-                  fontSize: "18px", 
-                  fontWeight: 400, 
-                  marginLeft: "8px",
-                  //color: "white"
+                  margin: "10px 0 0 0", 
+                  fontSize: "42px", 
+                  fontWeight: 800,
+                  color: "#7C4DFF" 
                 }}
               >
-                pts
-              </span>
-            </p>
+                {loading ? "--" : velocity}
+                <span 
+                  style={{
+                    fontSize: "18px", 
+                    fontWeight: 400, 
+                    marginLeft: "8px",
+                    //color: "white" 
+                  }}
+                >
+                  pts
+                </span>
+              </p>
+            </div>
+
+            <div style={velocityCardStyle}>
+              <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8 }}>
+                Expected Velocity
+              </h3>
+              <p 
+                style={{ 
+                  margin: "10px 0 0 0", 
+                  fontSize: "42px", 
+                  fontWeight: 800, 
+                  color: "#94A3B8" 
+                }}
+              >
+                {loading ? "--" : expectedVelocity}
+                <span 
+                  style={{ 
+                    fontSize: "18px", 
+                    fontWeight: 400, 
+                    marginLeft: "8px",
+                    //color: "white"
+                  }}
+                >
+                  pts
+                </span>
+              </p>
+            </div>
+
+
           </div>
+
         </div>
-
-
+      
+      {/*}
         <h2>Sprint #BLANK Burndown Chart</h2>
         <div style={chartWrapperStyle}>
           <SprintBurndownChart />
-        </div>    
+        </div>   
+      */} 
 
       </div>
     </SidebarLayout>
