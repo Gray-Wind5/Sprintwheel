@@ -187,20 +187,32 @@ def get_sprint_burndown(
     sprint_days = (sprint.end_date - sprint.start_date).days + 1
     final_array = [None] * sprint_days
     today = date.today()
+    index_day = sprint.start_date
+
 
     remaining_points = (
         db.query(func.coalesce(func.sum(Story.points), 0))
-        .filter(Story.sprint_id == sprint_id)
+        .filter(
+            Story.sprint_id == sprint_id,
+            Story.date_added < index_day,
+        )
         .scalar()
     )
+
     remaining_points = int(remaining_points)
-
-    index_day = sprint.start_date
-
     for day in range(sprint_days):
         if index_day > today:
             break
-
+        added_points = (
+            db.query(func.coalesce(func.sum(Story.points), 0))
+            .filter(
+                Story.sprint_id == sprint_id,
+                Story.date_added == index_day,
+            )
+            .scalar()
+        )
+        remaining_points += added_points
+        
         points_completed_that_day = (
             db.query(func.coalesce(func.sum(Story.points), 0))
             .filter(
@@ -214,17 +226,13 @@ def get_sprint_burndown(
 
         remaining_points -= points_completed_that_day
 
-        days_left = (sprint.end_date - index_day).days + 1
-        if days_left > 0:
-            final_array[day] = round(remaining_points / days_left, 2)
-        else:
-            final_array[day] = round(float(remaining_points), 2)
+        final_array[day] = remaining_points
 
         index_day += timedelta(days=1)
 
-        sprint.burndown_array = final_array
-        db.commit()
-        db.refresh(sprint)
+    sprint.burndown_array = final_array
+    db.commit()
+    db.refresh(sprint)
 
     return {
         "burndown_array": final_array
