@@ -361,15 +361,6 @@ export default function SettingsPage(): JSX.Element {
                 {theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
               </button>
             </div>
-
-            <div style={styles.quickCard}>
-              <h3 style={styles.quickTitle}>Dashboard Layout</h3>
-              <p style={styles.quickText}>
-                Customize the widgets and layout that appear on your dashboard.
-              </p>
-              <button style={styles.smallButton}>Customize Layout</button>
-            </div>
-
             <div style={styles.quickCard}>
               <h3 style={styles.quickTitle}>Integrations</h3>
               <p style={styles.quickText}>

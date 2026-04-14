@@ -12,11 +12,31 @@ type Member = {
   role: string;
 };
 
+type Story = {
+  id: string;
+  project_id: string;
+  sprint_id: string | null;
+  title: string;
+  description: string | null;
+  points: number | null;
+  isDone: boolean;
+  priority: number;
+  date_completed: string | null;
+};
+
 type GeneratedBacklogItem = {
   tempId: string;
   title: string;
   description: string;
   points: number;
+};
+
+type BacklogPreviewItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  points: number | null;
+  isDone: boolean;
 };
 
 type ProjectFormData = {
@@ -25,10 +45,11 @@ type ProjectFormData = {
   productOwner: string;
   developer: string;
   sprintGoal: string;
-  expectedDeadline: string;
   status: string;
   repoLink: string;
+  vercelLink: string;
   microcharter: string;
+  projectSummary: string;
 };
 
 type MicrocharterInputs = {
@@ -45,10 +66,12 @@ const emptyForm: ProjectFormData = {
   productOwner: "",
   developer: "",
   sprintGoal: "",
-  expectedDeadline: "",
   status: "",
   repoLink: "",
+  vercelLink: "",
   microcharter: "",
+  projectSummary:
+    "This is where you can manage the product, update project focus, see current role assignment, manage or create a GitHub repo, create or deploy a Vercel app.",
 };
 
 const emptyMicroInputs: MicrocharterInputs = {
@@ -69,25 +92,46 @@ const featureOptions = [
   "workflow automation",
 ];
 
-/* const API = "http://127.0.0.1:8000";
+const FIBONACCI_POINTS = [1, 2, 3, 5, 8, 13, 21, 34] as const;
 
-function authHeaders() {
-  return {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-  };
-} */ 
+function getSafeExternalUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
 
-function formatDeadline(dateString: string): string {
-  if (!dateString) return "—";
+function normalizePoints(value: number | null | undefined): number {
+  if (value == null || Number.isNaN(value)) return 1;
+  return FIBONACCI_POINTS.includes(value as (typeof FIBONACCI_POINTS)[number])
+    ? value
+    : 1;
+}
 
-  const date = new Date(`${dateString}T00:00:00`);
-  return Number.isNaN(date.getTime())
-    ? dateString
-    : date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
+function isPlaceholderStory(story: Story): boolean {
+  const title = story.title.trim().toLowerCase();
+  const description = (story.description ?? "").trim().toLowerCase();
+
+  return (
+    title === "main board" ||
+    title === "main backlog" ||
+    title === "product backlog" ||
+    title === "main board product" ||
+    (title === "main board product" && !description) ||
+    (title === "main board" && !description)
+  );
+}
+
+function cleanStories(data: Story[]): BacklogPreviewItem[] {
+  return data
+    .filter((story) => !isPlaceholderStory(story))
+    .map((story) => ({
+      id: story.id,
+      title: story.title,
+      description: story.description,
+      points: normalizePoints(story.points),
+      isDone: story.isDone,
+    }));
 }
 
 export default function ProjectDetailsPage(): JSX.Element {
@@ -97,8 +141,7 @@ export default function ProjectDetailsPage(): JSX.Element {
   const isDark = theme === "dark";
 
   const storageKey = `project-details-${projectId ?? "default"}-${role ?? "default"}`;
-  const calendarStorageKey = `project-calendar-deadline-${projectId ?? "default"}`;
-  const calendarRouteBase = `/projects/${projectId}/${role}/calendar`;
+  const backlogRoute = `/projects/${projectId}/${role}/product-backlog`;
 
   const [formData, setFormData] = useState<ProjectFormData>(emptyForm);
   const [submittedData, setSubmittedData] = useState<ProjectFormData | null>(null);
@@ -111,7 +154,8 @@ export default function ProjectDetailsPage(): JSX.Element {
   const [addingGeneratedIds, setAddingGeneratedIds] = useState<string[]>([]);
   const [addedGeneratedIds, setAddedGeneratedIds] = useState<string[]>([]);
 
-  const [calendarWindowOpen, setCalendarWindowOpen] = useState(false);
+  const [backlogPreviewItems, setBacklogPreviewItems] = useState<BacklogPreviewItem[]>([]);
+  const [backlogPreviewLoading, setBacklogPreviewLoading] = useState(false);
 
   useEffect(() => {
     const savedData = localStorage.getItem(storageKey);
@@ -132,17 +176,53 @@ export default function ProjectDetailsPage(): JSX.Element {
     if (!projectId) return;
 
     api<Member[]>(`/projects/${projectId}/members`)
-    .then((data) => setMembers(Array.isArray(data) ? data : []))
-    .catch((error) => {
-      console.error("Failed to fetch project members:", error);
-      setMembers([]);
-    });
+      .then((data) => setMembers(Array.isArray(data) ? data : []))
+      .catch((error) => {
+        console.error("Failed to fetch project members:", error);
+        setMembers([]);
+      });
   }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    setBacklogPreviewLoading(true);
+
+    api<Story[]>(`/stories/backlog?project_id=${projectId}`)
+      .then((data) => {
+        const cleaned = cleanStories(Array.isArray(data) ? data : []);
+        const topPriority = cleaned.filter((story) => !story.isDone).slice(0, 4);
+        setBacklogPreviewItems(topPriority);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch backlog preview:", error);
+        setBacklogPreviewItems([]);
+      })
+      .finally(() => {
+        setBacklogPreviewLoading(false);
+      });
+  }, [projectId, addedGeneratedIds]);
+
+  const displayProjectName =
+    submittedData?.projectName || formData.projectName || "Project Details";
+
+  const savedRepoLink = getSafeExternalUrl(formData.repoLink);
+  const savedVercelLink = getSafeExternalUrl(formData.vercelLink);
+
+  const githubCreateUrl = "https://github.com/new";
+  const vercelCreateUrl = "https://vercel.com/new";
+
+  function saveForm(nextData: ProjectFormData): void {
+    setFormData(nextData);
+    setSubmittedData(nextData);
+    localStorage.setItem(storageKey, JSON.stringify(nextData));
+  }
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ): void => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -199,30 +279,14 @@ export default function ProjectDetailsPage(): JSX.Element {
     }));
   }
 
-  function syncDeadlineToCalendar(deadline: string): void {
-    localStorage.setItem(
-      calendarStorageKey,
-      JSON.stringify({
-        projectId: projectId ?? "",
-        role: role ?? "",
-        expectedDeadline: deadline,
-        updatedAt: new Date().toISOString(),
-      })
-    );
-  }
-
-  function getCalendarRoute(deadline?: string): string {
-    if (!deadline) return calendarRouteBase;
-    const params = new URLSearchParams({ expectedDeadline: deadline });
-    return `${calendarRouteBase}?${params.toString()}`;
-  }
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
-    e.preventDefault();
-    setSubmittedData(formData);
-    localStorage.setItem(storageKey, JSON.stringify(formData));
-    syncDeadlineToCalendar(formData.expectedDeadline);
+  const handleSubmit = (e?: FormEvent<HTMLFormElement>): void => {
+    e?.preventDefault();
+    saveForm(formData);
     setIsEditing(false);
+  };
+
+  const handleSaveMicrocharter = (): void => {
+    saveForm(formData);
   };
 
   const handleReset = (): void => {
@@ -233,7 +297,6 @@ export default function ProjectDetailsPage(): JSX.Element {
     setAddingGeneratedIds([]);
     setAddedGeneratedIds([]);
     localStorage.removeItem(storageKey);
-    localStorage.removeItem(calendarStorageKey);
     setIsEditing(true);
   };
 
@@ -251,17 +314,6 @@ export default function ProjectDetailsPage(): JSX.Element {
     } else {
       setFormData(emptyForm);
     }
-  };
-
-  const handleUpdateDeadlineOnly = (): void => {
-    const latest = isEditing ? formData.expectedDeadline : submittedData?.expectedDeadline ?? "";
-    syncDeadlineToCalendar(latest);
-  };
-
-  const handleOpenCalendar = (): void => {
-    const latest = isEditing ? formData.expectedDeadline : submittedData?.expectedDeadline ?? "";
-    syncDeadlineToCalendar(latest);
-    setCalendarWindowOpen(true);
   };
 
   const getMemberDisplayName = (memberId: string): string => {
@@ -429,35 +481,43 @@ export default function ProjectDetailsPage(): JSX.Element {
   }
 
   function handleGenerateBacklog(): void {
-    const sourceText = (
-      isEditing ? formData.microcharter : submittedData?.microcharter ?? ""
-    ).trim();
+    const sourceText = formData.microcharter.trim();
 
+    if (!sourceText) {
+      alert("Add a microcharter first.");
+      return;
+    }
+
+    saveForm(formData);
     const generated = generateBacklogFromMicrocharter(sourceText);
     setGeneratedItems(generated);
     setAddedGeneratedIds([]);
   }
 
   function handleAddGeneratedToBacklog(item: GeneratedBacklogItem): void {
-    if (!projectId) return;
+    if (!projectId) {
+      alert("Project ID is missing.");
+      return;
+    }
 
     setAddingGeneratedIds((prev) => [...prev, item.tempId]);
 
     api(`/stories/backlog`, {
-        method: "POST",
-        body: JSON.stringify({
-          project_id: projectId,
-          title: item.title,
-          description: item.description,
-          points: item.points,
-          priority: 1,
-        }),
-      })
+      method: "POST",
+      body: JSON.stringify({
+        project_id: projectId,
+        title: item.title,
+        description: item.description,
+        points: item.points,
+        priority: 1,
+      }),
+    })
       .then(() => {
         setAddedGeneratedIds((prev) => [...prev, item.tempId]);
       })
       .catch((err) => {
         console.error("Error creating generated backlog item:", err);
+        alert("Could not add this item to the backlog.");
       })
       .finally(() => {
         setAddingGeneratedIds((prev) => prev.filter((id) => id !== item.tempId));
@@ -483,69 +543,121 @@ export default function ProjectDetailsPage(): JSX.Element {
     ).length;
   }, [generatedItems, addedGeneratedIds, addingGeneratedIds]);
 
-  const activeDeadline = isEditing
-    ? formData.expectedDeadline
-    : submittedData?.expectedDeadline ?? "";
-
-  const calendarRoute = getCalendarRoute(activeDeadline);
-
   const pageStyle: CSSProperties = {
     color: isDark ? "white" : "#111827",
-    padding: 40,
+    padding: 36,
     minHeight: "100vh",
-    background: isDark ? "#0b0f17" : "#f8fafc",
+    textAlign: "left",
+    background: isDark
+      ? "radial-gradient(circle at top left, rgba(124,58,237,0.20), transparent 24%), radial-gradient(circle at top right, rgba(59,130,246,0.16), transparent 24%), linear-gradient(180deg, #0b0f17 0%, #111827 100%)"
+      : "#f8fafc",
   };
 
-  const headingStyle: CSSProperties = {
-    marginBottom: 20,
-    color: isDark ? "white" : "#111827",
+  const shellStyle: CSSProperties = {
+    maxWidth: 1120,
+    margin: "0 auto",
+    display: "grid",
+    gap: 22,
   };
 
-  const sectionStyle: CSSProperties = {
-    marginTop: 30,
-    padding: 24,
-    borderRadius: 16,
+  const cardStyle: CSSProperties = {
+    padding: 22,
+    borderRadius: 22,
+    minHeight: 0,
+    backdropFilter: "blur(18px)",
+    WebkitBackdropFilter: "blur(18px)",
+    background: isDark ? "rgba(255,255,255,0.10)" : "#ffffff",
+    border: isDark
+      ? "1px solid rgba(255,255,255,0.16)"
+      : "1px solid rgba(17,24,39,0.08)",
+    boxShadow: isDark
+      ? "0 10px 30px rgba(0,0,0,0.22)"
+      : "0 10px 30px rgba(15,23,42,0.08)",
+  };
+
+  const pillCardStyle: CSSProperties = {
     background: isDark ? "rgba(255,255,255,0.05)" : "#ffffff",
     border: isDark
-      ? "1px solid rgba(255,255,255,0.1)"
-      : "1px solid rgba(17,24,39,0.1)",
-    boxShadow: isDark ? "none" : "0 8px 24px rgba(15,23,42,0.06)",
+      ? "1px solid rgba(255,255,255,0.08)"
+      : "1px solid rgba(17,24,39,0.08)",
+    borderRadius: 24,
+    padding: "28px 30px",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    boxShadow: isDark
+      ? "0 14px 40px rgba(0,0,0,0.22)"
+      : "0 14px 40px rgba(15,23,42,0.08)",
   };
 
   const sectionTitleStyle: CSSProperties = {
-    marginTop: 0,
-    marginBottom: 16,
+    margin: 0,
+    marginBottom: 14,
+    color: isDark ? "white" : "#111827",
+    fontSize: 26,
+    fontWeight: 800,
+  };
+
+  const eyebrowStyle: CSSProperties = {
+    margin: 0,
+    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#c4b5fd",
+  };
+
+  const blueTitleStyle: CSSProperties = {
+    margin: 0,
+    marginBottom: 12,
+    fontSize: 36,
+    fontWeight: 800,
+    lineHeight: 1.1,
     color: isDark ? "white" : "#111827",
   };
 
-  const formStyle: CSSProperties = {
-    display: "grid",
-    gap: 16,
+  const summaryTextStyle: CSSProperties = {
+    margin: "6px 0",
+    color: isDark ? "rgba(255,255,255,0.82)" : "#4b5563",
+    maxWidth: 820,
+    lineHeight: 1.6,
+    fontSize: 16,
+  };
+
+  const helperTextStyle: CSSProperties = {
+    marginTop: 4,
+    marginBottom: 0,
+    fontSize: 13,
+    color: isDark ? "rgba(255,255,255,0.72)" : "#64748b",
   };
 
   const labelStyle: CSSProperties = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    fontWeight: 600,
+    fontWeight: 700,
     color: isDark ? "#e5e7eb" : "#1f2937",
   };
 
   const inputStyle: CSSProperties = {
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: isDark
-      ? "1px solid rgba(255,255,255,0.14)"
-      : "1px solid rgba(17,24,39,0.12)",
-    background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff",
-    color: isDark ? "white" : "#111827",
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 12,
     outline: "none",
+    background: isDark ? "rgba(255,255,255,0.12)" : "#f3f4f6",
+    border: isDark
+      ? "1px solid rgba(255,255,255,0.16)"
+      : "1px solid rgba(17,24,39,0.08)",
+    color: isDark ? "rgba(255,255,255,0.88)" : "#111827",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
     fontSize: 14,
+    boxSizing: "border-box",
   };
 
   const textareaStyle: CSSProperties = {
     ...inputStyle,
-    minHeight: 100,
+    minHeight: 120,
     resize: "vertical",
     fontFamily: "inherit",
   };
@@ -554,339 +666,501 @@ export default function ProjectDetailsPage(): JSX.Element {
     display: "flex",
     gap: 12,
     flexWrap: "wrap",
-    marginTop: 8,
+    marginTop: 14,
   };
 
   const primaryButtonStyle: CSSProperties = {
     padding: "10px 16px",
-    borderRadius: 10,
-    border: "none",
-    background: "#7c3aed",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "#2563eb",
     color: "white",
     cursor: "pointer",
-    fontWeight: 600,
+    fontWeight: 700,
+    boxShadow: "0 8px 20px rgba(37,99,235,0.28)",
   };
 
   const secondaryButtonStyle: CSSProperties = {
     padding: "10px 16px",
-    borderRadius: 10,
-    border: isDark
-      ? "1px solid rgba(255,255,255,0.14)"
-      : "1px solid rgba(17,24,39,0.12)",
-    background: isDark ? "rgba(255,255,255,0.04)" : "#ffffff",
-    color: isDark ? "white" : "#111827",
-    cursor: "pointer",
-    fontWeight: 600,
-  };
-
-  const infoGridStyle: CSSProperties = {
-    display: "grid",
-    gap: 14,
-  };
-
-  const infoCardStyle: CSSProperties = {
-    padding: 16,
     borderRadius: 12,
-    background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
+    background: isDark ? "rgba(255,255,255,0.14)" : "#ffffff",
     border: isDark
-      ? "1px solid rgba(255,255,255,0.08)"
+      ? "1px solid rgba(255,255,255,0.16)"
       : "1px solid rgba(17,24,39,0.08)",
-  };
-
-  const infoLabelStyle: CSSProperties = {
-    fontSize: 13,
-    fontWeight: 700,
-    marginBottom: 6,
-    color: isDark ? "#cbd5e1" : "#475569",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  };
-
-  const infoValueStyle: CSSProperties = {
-    margin: 0,
     color: isDark ? "white" : "#111827",
-    whiteSpace: "pre-wrap",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    cursor: "pointer",
+    fontWeight: 700,
   };
 
-  const repoLinkStyle: CSSProperties = {
-    color: "#7c3aed",
-    fontWeight: 600,
+  const splitGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 22,
+  };
+
+  const backlogBarTrackStyle: CSSProperties = {
+    width: "100%",
+    height: 54,
+    borderRadius: 16,
+    border: isDark
+      ? "1px solid rgba(255,255,255,0.16)"
+      : "1px solid rgba(17,24,39,0.08)",
+    background: isDark ? "rgba(255,255,255,0.08)" : "#ffffff",
+    padding: 8,
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    marginTop: 16,
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+  };
+
+  const backlogBarFillStyle: CSSProperties = {
+    width: `${Math.min(Math.max(backlogPreviewItems.length, generatedItems.length) * 18, 88)}%`,
+    height: "100%",
+    borderRadius: 12,
+    background: "linear-gradient(90deg, rgba(147,197,253,0.95), rgba(96,165,250,0.95))",
+  };
+
+  const previewItemStyle: CSSProperties = {
+    background: isDark ? "rgba(255,255,255,0.12)" : "#ffffff",
+    border: isDark
+      ? "1px solid rgba(255,255,255,0.16)"
+      : "1px solid rgba(17,24,39,0.08)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    padding: 14,
+    borderRadius: 16,
+    color: isDark ? "white" : "#111827",
+    boxShadow: isDark
+      ? "0 6px 20px rgba(0,0,0,0.16)"
+      : "0 6px 20px rgba(15,23,42,0.06)",
+  };
+
+  const linkStyle: CSSProperties = {
+    color: "#2563eb",
+    fontWeight: 700,
     textDecoration: "none",
     wordBreak: "break-all",
   };
 
-  const helperTextStyle: CSSProperties = {
-    marginTop: 4,
-    marginBottom: 0,
-    fontSize: 13,
-    color: isDark ? "#94a3b8" : "#64748b",
-  };
-
-  const generatedListStyle: CSSProperties = {
-    display: "grid",
-    gap: 14,
-  };
-
-  const generatedItemStyle: CSSProperties = {
+  const miniCardStyle: CSSProperties = {
+    marginTop: 14,
     padding: 16,
-    borderRadius: 12,
-    background: isDark ? "rgba(255,255,255,0.03)" : "#f8fafc",
+    borderRadius: 16,
+    background: isDark ? "rgba(255,255,255,0.08)" : "#f9fafb",
     border: isDark
-      ? "1px solid rgba(255,255,255,0.08)"
+      ? "1px solid rgba(255,255,255,0.14)"
       : "1px solid rgba(17,24,39,0.08)",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
   };
 
-  const pointsBadgeStyle: CSSProperties = {
+  const statsPillStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "center",
-    padding: "4px 8px",
+    padding: "6px 12px",
     borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 700,
-    background: isDark ? "rgba(124,58,237,0.16)" : "#ede9fe",
-    color: "#7c3aed",
-    marginBottom: 8,
-  };
-
-  const featureWrapStyle: CSSProperties = {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-  };
-
-  const modalOverlayStyle: CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0, 0, 0, 0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-    padding: 20,
-  };
-
-  const modalHeaderStyle: CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
-    marginBottom: 12,
-    flexWrap: "wrap",
-  };
-
-  const modalTitleStyle: CSSProperties = {
-    fontSize: 22,
-    fontWeight: 700,
-    color: isDark ? "white" : "#111827",
-  };
-
-  const modalSubtitleStyle: CSSProperties = {
-    marginTop: 4,
-    fontSize: 14,
-    color: isDark ? "#94a3b8" : "#64748b",
-  };
-
-  const calendarWindowStyle: CSSProperties = {
-    width: "95vw",
-    maxWidth: "1400px",
-    height: "88vh",
-    background: isDark ? "#111827" : "#ffffff",
-    borderRadius: 16,
-    border: isDark
-      ? "1px solid rgba(255,255,255,0.10)"
-      : "1px solid rgba(17,24,39,0.08)",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-    padding: 16,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  };
-
-  const calendarIframeStyle: CSSProperties = {
-    width: "100%",
-    height: "100%",
-    border: "none",
-    borderRadius: 12,
-    background: isDark ? "#0b0f17" : "#ffffff",
+    background: isDark ? "rgba(37,99,235,0.18)" : "#dbeafe",
+    color: isDark ? "#93c5fd" : "#2563eb",
+    fontWeight: 800,
+    fontSize: 13,
   };
 
   return (
     <SidebarLayout>
       <div style={pageStyle}>
-        <h1 style={headingStyle}>Project Details Page</h1>
-        <p>Enter and manage your Scrum project details below.</p>
+        <div style={shellStyle}>
+          <section style={pillCardStyle}>
+            <div style={eyebrowStyle}>Project Management</div>
+            <h1 style={blueTitleStyle}>{displayProjectName}</h1>
 
-        {isEditing && (
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>Scrum Project Form</h2>
-            <p style={helperTextStyle}>
-              Your saved project details will stay here even after refresh.
-            </p>
-
-            <form onSubmit={handleSubmit} style={formStyle}>
-              <label style={labelStyle}>
-                Project Name
-                <input
-                  type="text"
-                  name="projectName"
-                  value={formData.projectName}
-                  onChange={handleChange}
-                  placeholder="Enter project name"
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={labelStyle}>
-                Scrum Master
-                <select
-                  name="scrumMaster"
-                  value={formData.scrumMaster}
-                  onChange={handleChange}
-                  style={inputStyle}
-                >
-                  <option value="">Select scrum master</option>
-                  {members.map((member) => (
-                    <option key={member.user_id} value={member.user_id}>
-                      {member.name || member.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={labelStyle}>
-                Product Owner
-                <select
-                  name="productOwner"
-                  value={formData.productOwner}
-                  onChange={handleChange}
-                  style={inputStyle}
-                >
-                  <option value="">Select product owner</option>
-                  {members.map((member) => (
-                    <option key={member.user_id} value={member.user_id}>
-                      {member.name || member.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={labelStyle}>
-                Developer
-                <select
-                  name="developer"
-                  value={formData.developer}
-                  onChange={handleChange}
-                  style={inputStyle}
-                >
-                  <option value="">Select developer</option>
-                  {members.map((member) => (
-                    <option key={member.user_id} value={member.user_id}>
-                      {member.name || member.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={labelStyle}>
-                Sprint Goal
-                <textarea
-                  name="sprintGoal"
-                  value={formData.sprintGoal}
-                  onChange={handleChange}
-                  placeholder="Describe the sprint goal"
-                  style={textareaStyle}
-                />
-              </label>
-
-              <div style={infoCardStyle}>
-                <h3 style={sectionTitleStyle}>Microcharter Builder</h3>
-                <p style={helperTextStyle}>
-                  Fill in the blanks to generate a stronger microcharter for backlog creation.
-                </p>
-
-                <div style={formStyle}>
+            {isEditing ? (
+              <div style={{ display: "grid", gap: 16, marginTop: 18 }}>
+                <label style={labelStyle}>
+                  Project Name
                   <input
-                    name="systemType"
-                    placeholder="What are you building? (e.g. project management platform)"
-                    value={microInputs.systemType}
-                    onChange={handleMicroInputChange}
+                    type="text"
+                    name="projectName"
+                    value={formData.projectName}
+                    onChange={handleChange}
+                    placeholder="Enter project name"
                     style={inputStyle}
                   />
+                </label>
 
-                  <input
-                    name="users"
-                    placeholder="Who is it for? (e.g. student teams)"
-                    value={microInputs.users}
-                    onChange={handleMicroInputChange}
-                    style={inputStyle}
+                <label style={labelStyle}>
+                  Project Summary
+                  <textarea
+                    name="projectSummary"
+                    value={formData.projectSummary}
+                    onChange={handleChange}
+                    style={{ ...textareaStyle, minHeight: 150, fontSize: 18, lineHeight: 1.55 }}
                   />
+                </label>
 
-                  <input
-                    name="goal"
-                    placeholder="What problem does it solve?"
-                    value={microInputs.goal}
-                    onChange={handleMicroInputChange}
-                    style={inputStyle}
-                  />
-
-                  <input
-                    name="outcome"
-                    placeholder="What is the desired outcome? (optional)"
-                    value={microInputs.outcome}
-                    onChange={handleMicroInputChange}
-                    style={inputStyle}
-                  />
-
-                  <div>
-                    <div style={infoLabelStyle}>Key Features</div>
-                    <div style={featureWrapStyle}>
-                      {featureOptions.map((feature) => {
-                        const selected = microInputs.features.includes(feature);
-
-                        return (
-                          <button
-                            key={feature}
-                            type="button"
-                            onClick={() => handleFeatureToggle(feature)}
-                            style={{
-                              ...secondaryButtonStyle,
-                              background: selected
-                                ? "#7c3aed"
-                                : isDark
-                                ? "rgba(255,255,255,0.04)"
-                                : "#ffffff",
-                              color: selected ? "white" : isDark ? "white" : "#111827",
-                              border: selected
-                                ? "none"
-                                : isDark
-                                ? "1px solid rgba(255,255,255,0.14)"
-                                : "1px solid rgba(17,24,39,0.12)",
-                            }}
-                          >
-                            {feature}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div style={buttonRowStyle}>
-                    <button
-                      type="button"
-                      onClick={handleGenerateMicrocharter}
-                      style={primaryButtonStyle}
+                <div style={splitGridStyle}>
+                  <label style={labelStyle}>
+                    Scrum Master
+                    <select
+                      name="scrumMaster"
+                      value={formData.scrumMaster}
+                      onChange={handleChange}
+                      style={inputStyle}
                     >
-                      Generate Microcharter
-                    </button>
-                  </div>
+                      <option value="">Select scrum master</option>
+                      {members.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.name || member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={labelStyle}>
+                    Product Owner
+                    <select
+                      name="productOwner"
+                      value={formData.productOwner}
+                      onChange={handleChange}
+                      style={inputStyle}
+                    >
+                      <option value="">Select product owner</option>
+                      {members.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.name || member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div style={splitGridStyle}>
+                  <label style={labelStyle}>
+                    Developer
+                    <select
+                      name="developer"
+                      value={formData.developer}
+                      onChange={handleChange}
+                      style={inputStyle}
+                    >
+                      <option value="">Select developer</option>
+                      {members.map((member) => (
+                        <option key={member.user_id} value={member.user_id}>
+                          {member.name || member.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={labelStyle}>
+                    Project Status
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleChange}
+                      style={inputStyle}
+                    >
+                      <option value="">Select status</option>
+                      <option value="Not Started">Not Started</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Blocked">Blocked</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label style={labelStyle}>
+                  Sprint Goal
+                  <textarea
+                    name="sprintGoal"
+                    value={formData.sprintGoal}
+                    onChange={handleChange}
+                    placeholder="Describe the sprint goal"
+                    style={textareaStyle}
+                  />
+                </label>
+
+                <div style={buttonRowStyle}>
+                  <button type="button" onClick={() => handleSubmit()} style={primaryButtonStyle}>
+                    Save Project Details
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={submittedData ? handleCancelEdit : handleReset}
+                    style={secondaryButtonStyle}
+                  >
+                    {submittedData ? "Cancel" : "Reset"}
+                  </button>
                 </div>
               </div>
+            ) : (
+              <>
+                <p style={summaryTextStyle}>
+                  {submittedData?.projectSummary || emptyForm.projectSummary}
+                </p>
 
+                <div style={{ ...buttonRowStyle, marginTop: 18 }}>
+                  <span style={statsPillStyle}>
+                    {submittedData?.status || "No status"}
+                  </span>
+
+                  {submittedData?.scrumMaster && (
+                    <span style={statsPillStyle}>
+                      Scrum Master: {getMemberDisplayName(submittedData.scrumMaster)}
+                    </span>
+                  )}
+
+                  {submittedData?.productOwner && (
+                    <span style={statsPillStyle}>
+                      Product Owner: {getMemberDisplayName(submittedData.productOwner)}
+                    </span>
+                  )}
+
+                  {submittedData?.developer && (
+                    <span style={statsPillStyle}>
+                      Developer: {getMemberDisplayName(submittedData.developer)}
+                    </span>
+                  )}
+                </div>
+
+                <div style={buttonRowStyle}>
+                  <button type="button" onClick={handleEdit} style={primaryButtonStyle}>
+                    Edit Project
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section style={cardStyle}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 16,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <h2 style={sectionTitleStyle}>Project Backlog</h2>
+            </div>
+
+            <div style={backlogBarTrackStyle}>
+              <div style={backlogBarFillStyle} />
+            </div>
+
+            <div style={buttonRowStyle}>
+              <button
+                type="button"
+                onClick={handleGenerateBacklog}
+                style={primaryButtonStyle}
+              >
+                Generate Backlog
+              </button>
+
+              {generatedItems.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleAddAllGeneratedToBacklog}
+                  style={secondaryButtonStyle}
+                >
+                  Add All to Backlog ({generatedCountNotAdded})
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => navigate(backlogRoute)}
+                style={secondaryButtonStyle}
+              >
+                Open Product Backlog
+              </button>
+            </div>
+
+            <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
+              <div style={eyebrowStyle}>Backlog Preview</div>
+
+              {backlogPreviewLoading ? (
+                <div style={previewItemStyle}>Loading backlog preview...</div>
+              ) : backlogPreviewItems.length > 0 ? (
+                backlogPreviewItems.map((item) => (
+                  <div key={item.id} style={previewItemStyle}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ fontWeight: 800 }}>{item.title}</div>
+                      <div style={{ opacity: 0.7, whiteSpace: "nowrap" }}>{item.points} pts</div>
+                    </div>
+
+                    <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
+                      {item.description || "No description"}
+                    </div>
+
+                    {item.isDone && (
+                      <div style={{ fontSize: 12, color: "#22c55e", marginTop: 4 }}>
+                        ✓ Completed
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div style={previewItemStyle}>
+                  No existing backlog items yet.
+                </div>
+              )}
+            </div>
+
+            {generatedItems.length > 0 && (
+              <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
+                <div style={eyebrowStyle}>Generated Suggestions</div>
+
+                {generatedItems.slice(0, 4).map((item) => {
+                  const isAdding = addingGeneratedIds.includes(item.tempId);
+                  const isAdded = addedGeneratedIds.includes(item.tempId);
+
+                  return (
+                    <div key={item.tempId} style={previewItemStyle}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 14,
+                          alignItems: "flex-start",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 800, marginBottom: 6 }}>{item.title}</div>
+                          <div
+                            style={{
+                              color: isDark ? "rgba(255,255,255,0.75)" : "#4b5563",
+                              fontSize: 14,
+                            }}
+                          >
+                            {item.description}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddGeneratedToBacklog(item)}
+                          style={isAdded || isAdding ? secondaryButtonStyle : primaryButtonStyle}
+                          disabled={isAdded || isAdding}
+                        >
+                          {isAdding ? "Adding..." : isAdded ? "Added" : `Add (${item.points} pts)`}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Project Microcharter</h2>
+            <p style={helperTextStyle}>
+              Build the microcharter here, save it, then turn it into backlog items.
+            </p>
+
+            <div style={miniCardStyle}>
+              <h3 style={{ marginTop: 0, marginBottom: 10, color: isDark ? "white" : "#111827" }}>
+                Microcharter Builder
+              </h3>
+
+              <div style={{ display: "grid", gap: 12 }}>
+                <label style={labelStyle}>
+                  What are you building?
+                  <input
+                    name="systemType"
+                    value={microInputs.systemType}
+                    onChange={handleMicroInputChange}
+                    placeholder="e.g. project management platform"
+                    style={inputStyle}
+                  />
+                </label>
+
+                <label style={labelStyle}>
+                  Who is it for?
+                  <input
+                    name="users"
+                    value={microInputs.users}
+                    onChange={handleMicroInputChange}
+                    placeholder="e.g. student teams"
+                    style={inputStyle}
+                  />
+                </label>
+
+                <label style={labelStyle}>
+                  What problem does it solve?
+                  <input
+                    name="goal"
+                    value={microInputs.goal}
+                    onChange={handleMicroInputChange}
+                    placeholder="Describe the main problem"
+                    style={inputStyle}
+                  />
+                </label>
+
+                <label style={labelStyle}>
+                  What is the desired outcome?
+                  <input
+                    name="outcome"
+                    value={microInputs.outcome}
+                    onChange={handleMicroInputChange}
+                    placeholder="optional"
+                    style={inputStyle}
+                  />
+                </label>
+
+                <div>
+                  <div style={{ ...eyebrowStyle, marginBottom: 8 }}>Key Features</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {featureOptions.map((feature) => {
+                      const selected = microInputs.features.includes(feature);
+
+                      return (
+                        <button
+                          key={feature}
+                          type="button"
+                          onClick={() => handleFeatureToggle(feature)}
+                          style={{
+                            ...secondaryButtonStyle,
+                            background: selected
+                              ? "#2563eb"
+                              : isDark
+                              ? "rgba(255,255,255,0.04)"
+                              : "#ffffff",
+                            color: selected ? "white" : isDark ? "white" : "#111827",
+                            border: selected
+                              ? "none"
+                              : isDark
+                              ? "1px solid rgba(255,255,255,0.14)"
+                              : "1px solid rgba(17,24,39,0.12)",
+                          }}
+                        >
+                          {feature}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={buttonRowStyle}>
+                  <button
+                    type="button"
+                    onClick={handleGenerateMicrocharter}
+                    style={primaryButtonStyle}
+                  >
+                    Generate Microcharter
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={miniCardStyle}>
               <label style={labelStyle}>
                 Microcharter
                 <textarea
@@ -894,60 +1168,17 @@ export default function ProjectDetailsPage(): JSX.Element {
                   value={formData.microcharter}
                   onChange={handleChange}
                   placeholder="Write the project microcharter here"
-                  style={{ ...textareaStyle, minHeight: 140 }}
-                />
-              </label>
-
-              <label style={labelStyle}>
-                Expected Deadline
-                <input
-                  type="date"
-                  name="expectedDeadline"
-                  value={formData.expectedDeadline}
-                  onChange={handleChange}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={labelStyle}>
-                Project Status
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  style={inputStyle}
-                >
-                  <option value="">Select status</option>
-                  <option value="Not Started">Not Started</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Blocked">Blocked</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </label>
-
-              <label style={labelStyle}>
-                GitHub Repository Link
-                <input
-                  type="text"
-                  name="repoLink"
-                  value={formData.repoLink}
-                  onChange={handleChange}
-                  placeholder="https://github.com/your-username/your-repo"
-                  style={inputStyle}
+                  style={{ ...textareaStyle, minHeight: 150 }}
                 />
               </label>
 
               <div style={buttonRowStyle}>
-                <button type="submit" style={primaryButtonStyle}>
-                  Save Project Details
-                </button>
-
                 <button
                   type="button"
-                  onClick={submittedData ? handleCancelEdit : handleReset}
-                  style={secondaryButtonStyle}
+                  onClick={handleSaveMicrocharter}
+                  style={primaryButtonStyle}
                 >
-                  {submittedData ? "Cancel" : "Reset"}
+                  Save Microcharter
                 </button>
 
                 <button
@@ -955,294 +1186,140 @@ export default function ProjectDetailsPage(): JSX.Element {
                   onClick={handleGenerateBacklog}
                   style={secondaryButtonStyle}
                 >
-                  Generate Backlog
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleUpdateDeadlineOnly}
-                  style={secondaryButtonStyle}
-                >
-                  Update Calendar Deadline
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleOpenCalendar}
-                  style={secondaryButtonStyle}
-                >
-                  Open Calendar
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate(`/projects/${projectId}/${role}/product-backlog`)}
-                  style={secondaryButtonStyle}
-                >
-                  Open Product Backlog
+                  Save + Generate Backlog
                 </button>
               </div>
-            </form>
+            </div>
           </section>
-        )}
 
-        {submittedData && (
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>Project Details</h2>
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Create Git Repo</h2>
 
-            <div style={infoGridStyle}>
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Project Name</div>
-                <p style={infoValueStyle}>{submittedData.projectName || "—"}</p>
-              </div>
+            <p style={helperTextStyle}>
+              Paste the repo link you want saved to this project, or open GitHub to create one first.
+            </p>
 
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Scrum Master</div>
-                <p style={infoValueStyle}>
-                  {submittedData.scrumMaster
-                    ? getMemberDisplayName(submittedData.scrumMaster)
-                    : "—"}
-                </p>
-              </div>
+            <div style={{ display: "grid", gap: 14, marginTop: 16 }}>
+              <input
+                type="text"
+                name="repoLink"
+                value={formData.repoLink}
+                onChange={handleChange}
+                placeholder="https://github.com/your-username/your-repo"
+                style={inputStyle}
+              />
 
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Product Owner</div>
-                <p style={infoValueStyle}>
-                  {submittedData.productOwner
-                    ? getMemberDisplayName(submittedData.productOwner)
-                    : "—"}
-                </p>
-              </div>
+              <div style={buttonRowStyle}>
+                <button type="button" onClick={() => saveForm(formData)} style={primaryButtonStyle}>
+                  Save Repo Link
+                </button>
 
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Developer</div>
-                <p style={infoValueStyle}>
-                  {submittedData.developer
-                    ? getMemberDisplayName(submittedData.developer)
-                    : "—"}
-                </p>
-              </div>
+                <a
+                  href={githubCreateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    ...secondaryButtonStyle,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
+                  Create Repo on GitHub
+                </a>
 
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Sprint Goal</div>
-                <p style={infoValueStyle}>{submittedData.sprintGoal || "—"}</p>
-              </div>
-
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Microcharter</div>
-                <p style={infoValueStyle}>{submittedData.microcharter || "—"}</p>
-              </div>
-
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Expected Deadline</div>
-                <p style={infoValueStyle}>{formatDeadline(submittedData.expectedDeadline)}</p>
-              </div>
-
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Project Status</div>
-                <p style={infoValueStyle}>{submittedData.status || "—"}</p>
-              </div>
-
-              <div style={infoCardStyle}>
-                <div style={infoLabelStyle}>Repository</div>
-                {submittedData.repoLink ? (
+                {savedRepoLink && (
                   <a
-                    href={submittedData.repoLink}
+                    href={savedRepoLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={repoLinkStyle}
+                    style={{
+                      ...secondaryButtonStyle,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
                   >
-                    Open Repository
+                    Open Saved Repo
                   </a>
-                ) : (
-                  <p style={infoValueStyle}>—</p>
                 )}
               </div>
-            </div>
 
-            <div style={buttonRowStyle}>
-              <button type="button" onClick={handleEdit} style={primaryButtonStyle}>
-                Edit Project
-              </button>
-
-              <button
-                type="button"
-                onClick={handleGenerateBacklog}
-                style={secondaryButtonStyle}
-              >
-                Generate Backlog
-              </button>
-
-              <button
-                type="button"
-                onClick={handleUpdateDeadlineOnly}
-                style={secondaryButtonStyle}
-              >
-                Update Calendar Deadline
-              </button>
-
-              <button
-                type="button"
-                onClick={handleOpenCalendar}
-                style={secondaryButtonStyle}
-              >
-                Open Calendar
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate(`/projects/${projectId}/${role}/product-backlog`)}
-                style={secondaryButtonStyle}
-              >
-                Open Product Backlog
-              </button>
-
-              <button type="button" onClick={handleReset} style={secondaryButtonStyle}>
-                Clear Project
-              </button>
+              {savedRepoLink && (
+                <div style={previewItemStyle}>
+                  <span style={{ marginRight: 8 }}>↳</span>
+                  <a href={savedRepoLink} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+                    {savedRepoLink}
+                  </a>
+                </div>
+              )}
             </div>
           </section>
-        )}
 
-        <section style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Expected Deadline</h2>
-          <p style={helperTextStyle}>
-            This replaces the old timeline notes field. Save or update the deadline anytime,
-            then open the calendar to use the latest date.
-          </p>
+          <section style={cardStyle}>
+            <h2 style={sectionTitleStyle}>Create Vercel App</h2>
 
-          <div style={infoCardStyle}>
-            <div style={infoLabelStyle}>Current Deadline</div>
-            <p style={infoValueStyle}>{formatDeadline(activeDeadline)}</p>
+            <p style={helperTextStyle}>
+              Paste the deployed app URL you want saved here, or open Vercel to create the project first.
+            </p>
 
-            <div style={buttonRowStyle}>
-              <button
-                type="button"
-                onClick={handleUpdateDeadlineOnly}
-                style={primaryButtonStyle}
-              >
-                Sync Deadline to Calendar
-              </button>
+            <div style={{ display: "grid", gap: 14, marginTop: 16 }}>
+              <input
+                type="text"
+                name="vercelLink"
+                value={formData.vercelLink}
+                onChange={handleChange}
+                placeholder="https://your-project.vercel.app"
+                style={inputStyle}
+              />
 
-              <button
-                type="button"
-                onClick={handleOpenCalendar}
-                style={secondaryButtonStyle}
-              >
-                Open Calendar
-              </button>
+              <div style={buttonRowStyle}>
+                <button type="button" onClick={() => saveForm(formData)} style={primaryButtonStyle}>
+                  Save Vercel Link
+                </button>
 
-              <button
-                type="button"
-                onClick={() => navigate(calendarRoute)}
-                style={secondaryButtonStyle}
-              >
-                Go to Full Calendar Page
-              </button>
-            </div>
-          </div>
-        </section>
+                <a
+                  href={vercelCreateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    ...secondaryButtonStyle,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
+                  Create App on Vercel
+                </a>
 
-        <section style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Generated Backlog</h2>
-          <p style={helperTextStyle}>
-            Starter backlog items generated from the microcharter.
-          </p>
-
-          {generatedItems.length > 0 && (
-            <div style={buttonRowStyle}>
-              <button
-                type="button"
-                onClick={handleAddAllGeneratedToBacklog}
-                style={secondaryButtonStyle}
-              >
-                Add All to Backlog ({generatedCountNotAdded})
-              </button>
-            </div>
-          )}
-
-          {generatedItems.length === 0 ? (
-            <div style={infoCardStyle}>
-              <div style={infoLabelStyle}>No generated items</div>
-              <p style={infoValueStyle}>
-                Add a microcharter and click Generate Backlog.
-              </p>
-            </div>
-          ) : (
-            <div style={generatedListStyle}>
-              {generatedItems.map((item) => {
-                const isAdding = addingGeneratedIds.includes(item.tempId);
-                const isAdded = addedGeneratedIds.includes(item.tempId);
-
-                return (
-                  <div key={item.tempId} style={generatedItemStyle}>
-                    <div style={{ flex: 1 }}>
-                      <div style={pointsBadgeStyle}>{item.points} pts</div>
-                      <div style={infoLabelStyle}>{item.title}</div>
-                      <p style={infoValueStyle}>{item.description}</p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddGeneratedToBacklog(item)}
-                      style={isAdded || isAdding ? secondaryButtonStyle : primaryButtonStyle}
-                      disabled={isAdded || isAdding}
-                    >
-                      {isAdding ? "Adding..." : isAdded ? "Added" : "Add to Backlog"}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {calendarWindowOpen && (
-          <div
-            style={modalOverlayStyle}
-            onClick={() => setCalendarWindowOpen(false)}
-          >
-            <div
-              style={calendarWindowStyle}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={modalHeaderStyle}>
-                <div>
-                  <div style={modalTitleStyle}>Project Calendar</div>
-                  <div style={modalSubtitleStyle}>
-                    The current expected deadline is passed through localStorage and the URL.
-                  </div>
-                </div>
-
-                <div style={buttonRowStyle}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      window.open(calendarRoute, "_blank", "noopener,noreferrer")
-                    }
-                    style={secondaryButtonStyle}
+                {savedVercelLink && (
+                  <a
+                    href={savedVercelLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...secondaryButtonStyle,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
                   >
-                    Open in New Tab
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCalendarWindowOpen(false)}
-                    style={secondaryButtonStyle}
-                  >
-                    Close
-                  </button>
-                </div>
+                    Open Saved App
+                  </a>
+                )}
               </div>
 
-              <iframe
-                title="Project Calendar"
-                src={calendarRoute}
-                style={calendarIframeStyle}
-              />
+              {savedVercelLink && (
+                <div style={previewItemStyle}>
+                  <span style={{ marginRight: 8 }}>↳</span>
+                  <a href={savedVercelLink} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+                    {savedVercelLink}
+                  </a>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          </section>
+        </div>
       </div>
     </SidebarLayout>
   );
