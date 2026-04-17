@@ -1,71 +1,168 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../api/client";
 
+interface Sprint {
+  id: string;
+  sprint_number: number;
+  sprint_name?: string;
+  start_date: string;
+  end_date: string;
+  is_active?: boolean;
+}
 
-export const useSprintBurndownData = (sprintId: string) => {
-    const [chartData, setChartData] = useState<any[]>([]);
-    const [sprintNumber, setSprintNumber] = useState<number | null>(null);
-    const [velocity, setVelocity] = useState<number>(0);
-    const [expectedVelocity, setExpectedVelocity] = useState<number>(0);
-    const [loading, setLoading] = useState(true);
+interface Story {
+  id: string;
+  sprint_id: string | null;
+  title: string;
+  points: number | null;
+  isDone: boolean;
+  date_added: string | null;
+  date_completed: string | null;
+}
 
-    useEffect(() => {
-        if (!sprintId) return;
+interface BurndownPoint {
+  day: string;
+  actual: number | null;
+  ideal: number;
+  isoDate: string;
+}
 
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const headers = { Authorization: `Bearer ${localStorage.getItem("token")}`};
+function parseYMDToLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
 
-                const metRes = await fetch(`http://127.0.0.1:8000/sprints/${sprintId}`, { headers });
-                const metData = await metRes.json();
-                setSprintNumber(metData.sprint_number);
+function toLocalISODate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
-                setVelocity(metData.sprint_velocity || 0);
+function formatAxisLabel(index: number, date: Date): string {
+  const pretty = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `Day ${index + 1}|${pretty}`;
+}
 
-                const startDate = new Date(metData.start_date);
+function sumPoints(stories: Story[]): number {
+  return stories.reduce((sum, story) => sum + (story.points ?? 0), 0);
+}
 
-                const burnRes = await fetch(`http://127.0.0.1:8000/sprints/${sprintId}/burndown`, { headers });
-                const data = await burnRes.json();
-                const burndown_array = data.burndown_array;
+export function useSprintBurndownData(projectId: string, sprintId: string) {
+  const [sprint, setSprint] = useState<Sprint | null>(null);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-                if (burndown_array) {
-                    const totalPoints = burndown_array[0] ?? 0;
-                    const duration = burndown_array.length;
+  useEffect(() => {
+    if (!projectId || !sprintId) {
+      setSprint(null);
+      setStories([]);
+      setLoading(false);
+      return;
+    }
 
-                    setExpectedVelocity(totalPoints);
+    let cancelled = false;
 
-                    const formatted = burndown_array.map((actual: number | null, index: number) => {
-                        const currentDate = new Date(startDate);
-                        currentDate.setDate(startDate.getDate() + index);
+    async function load() {
+      setLoading(true);
+      try {
+        const [sprintsRes, storiesRes] = await Promise.all([
+          api<Sprint[]>(`/sprints?project_id=${projectId}`),
+          api<Story[]>(`/stories?project_id=${projectId}`),
+        ]);
 
-                        
-                        const datePart = currentDate.toLocaleDateString(`en-US`, {
-                            month: "short",
-                            day: 'numeric'
-                        })
+        if (cancelled) return;
 
-                        const ideal = duration > 1
-                            ? Math.max(0, totalPoints - (index * (totalPoints / (duration - 1))))
-                            : totalPoints;
+        const allSprints = Array.isArray(sprintsRes) ? sprintsRes : [];
+        const allStories = Array.isArray(storiesRes) ? storiesRes : [];
 
-                        return {
-                            day: `Day ${index}:|${datePart}`,
-                            actual: actual,
-                            ideal,
-                        };
-                });
-                console.log(formatted)
-                    setChartData(formatted);
-                }
-            } catch (error) {
-                console.error("Fetch error:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+        const selectedSprint = allSprints.find((s) => s.id === sprintId) ?? null;
+        const sprintStories = allStories.filter((story) => story.sprint_id === sprintId);
 
-        fetchData();
-    }, [sprintId]);
+        setSprint(selectedSprint);
+        setStories(sprintStories);
+      } catch (err) {
+        console.error("Error loading burndown data:", err);
+        if (!cancelled) {
+          setSprint(null);
+          setStories([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
 
-    return { chartData, sprintNumber, velocity, expectedVelocity, loading };
-};
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, sprintId]);
+
+  const chartData = useMemo<BurndownPoint[]>(() => {
+    if (!sprint?.start_date || !sprint?.end_date) return [];
+
+    const sprintStart = parseYMDToLocalDate(sprint.start_date);
+    const sprintEnd = parseYMDToLocalDate(sprint.end_date);
+
+    if (sprintEnd < sprintStart) return [];
+
+    const days: Date[] = [];
+    const cursor = new Date(sprintStart);
+
+    while (cursor <= sprintEnd) {
+      days.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const totalPoints = sumPoints(stories);
+
+    return days.map((date, idx) => {
+      const isoDate = toLocalISODate(date);
+
+      const remaining = stories.reduce((sum, story) => {
+        const pts = story.points ?? 0;
+        const addedDate = story.date_added || sprint.start_date;
+        const completedDate = story.date_completed;
+
+        if (addedDate > isoDate) return sum;
+
+        if (completedDate && completedDate < isoDate) {
+          return sum;
+        }
+
+        return sum + pts;
+      }, 0);
+
+      const ideal = totalPoints - (totalPoints * idx) / Math.max(days.length - 1, 1);
+
+      return {
+        day: formatAxisLabel(idx, date),
+        isoDate,
+        actual: remaining,
+        ideal: Number(ideal.toFixed(1)),
+      };
+    });
+  }, [sprint, stories]);
+
+  const velocity = useMemo(() => {
+    return stories
+      .filter((story) => Boolean(story.date_completed))
+      .reduce((sum, story) => sum + (story.points ?? 0), 0);
+  }, [stories]);
+
+  const expectedVelocity = useMemo(() => {
+    return stories.reduce((sum, story) => sum + (story.points ?? 0), 0);
+  }, [stories]);
+
+  return {
+    chartData,
+    sprintNumber: sprint?.sprint_number ?? "—",
+    velocity,
+    expectedVelocity,
+    loading,
+  };
+}

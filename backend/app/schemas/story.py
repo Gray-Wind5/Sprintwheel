@@ -1,5 +1,4 @@
 from datetime import date
-
 from pydantic import BaseModel, Field
 from uuid import UUID
 
@@ -20,8 +19,10 @@ class StoryUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     points: int | None = Field(default=None, ge=0)
-    isDone: bool | None = Field(default=False)
+    isDone: bool | None = None
     priority: int | None = None
+    date_added: date | None = None
+    date_completed: date | None = None
 
 
 class StoryOut(BaseModel):
@@ -48,6 +49,7 @@ class StoryDateUpdate(BaseModel):
 
 class StoryReorderRequest(BaseModel):
     ordered_ids: list[UUID]
+
 
 class StoryPointsUpdate(BaseModel):
     points: int = Field(ge=0)
