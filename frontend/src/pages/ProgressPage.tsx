@@ -8,6 +8,8 @@ import { useSprintBurndownData } from "../hooks/useBurndown";
 import { BurndownChartUI } from "../components/BurndownChartUI";
 import { useParams } from "react-router-dom"; 
 
+const API_BASE = import.meta.env.VITE_API_URL || "https://sprintwheel.onrender.com";
+
 export default function ProgressPage(): JSX.Element {
     const { theme } = useTheme();
     const isDark = theme === "dark";
@@ -80,7 +82,7 @@ export default function ProgressPage(): JSX.Element {
   useEffect(() => {
     if (!projectId) return;
 
-    fetch(`http://127.0.0.1:8000/sprints?project_id=${projectId}`, {
+    fetch(`${API_BASE}/sprints?project_id=${projectId}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
     })
       .then(res => res.json())

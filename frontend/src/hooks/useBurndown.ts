@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 
+const API_BASE = import.meta.env.VITE_API_URL || "https://sprintwheel.onrender.com";
 
 export const useSprintBurndownData = (sprintId: string) => {
     const [chartData, setChartData] = useState<any[]>([]);
@@ -16,7 +17,7 @@ export const useSprintBurndownData = (sprintId: string) => {
             try {
                 const headers = { Authorization: `Bearer ${localStorage.getItem("token")}`};
 
-                const metRes = await fetch(`http://127.0.0.1:8000/sprints/${sprintId}`, { headers });
+                const metRes = await fetch(`${API_BASE}/sprints/${sprintId}`, { headers });
                 const metData = await metRes.json();
                 setSprintNumber(metData.sprint_number);
 
@@ -24,7 +25,7 @@ export const useSprintBurndownData = (sprintId: string) => {
 
                 const startDate = new Date(metData.start_date);
 
-                const burnRes = await fetch(`http://127.0.0.1:8000/sprints/${sprintId}/burndown`, { headers });
+                const burnRes = await fetch(`${API_BASE}/sprints/${sprintId}/burndown`, { headers });
                 const data = await burnRes.json();
                 const burndown_array = data.burndown_array;
 

@@ -2,6 +2,8 @@ import { useEffect, useState, type CSSProperties, type JSX } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
 
+const API_BASE = import.meta.env.VITE_API_URL || "https://sprintwheel.onrender.com";
+
 export default function SettingsPage(): JSX.Element {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
@@ -213,7 +215,7 @@ export default function SettingsPage(): JSX.Element {
           localStorage.getItem("token") ||
           localStorage.getItem("access_token");
 
-        const res = await fetch("http://127.0.0.1:8000/auth/me", {
+        const res = await fetch(`${API_BASE}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -252,7 +254,7 @@ export default function SettingsPage(): JSX.Element {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://127.0.0.1:8000/auth/change-name", {
+      const res = await fetch(`${API_BASE}/auth/change-name`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -304,7 +306,7 @@ export default function SettingsPage(): JSX.Element {
         localStorage.getItem("token") ||
         localStorage.getItem("access_token");
 
-      const res = await fetch("http://127.0.0.1:8000/auth/change-password", {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
