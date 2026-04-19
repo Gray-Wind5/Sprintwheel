@@ -10,6 +10,8 @@ import {
 import NotificationBell from "./NotificationBell";
 import { useTheme } from "../pages/ThemeContext";
 
+const API_BASE = import.meta.env.VITE_API_URL || "https://sprintwheel.onrender.com";
+
 const styles: Record<string, CSSProperties> = {
   shell: {
     display: "flex",
@@ -509,7 +511,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
 
       const token = localStorage.getItem("token");
 
-      const res = await fetch("http://127.0.0.1:8000/projects/join-by-code", {
+      const res = await fetch(`${API_BASE}/projects/join-by-code`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
