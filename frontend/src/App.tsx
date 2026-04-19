@@ -26,6 +26,7 @@ import ScrumEventsPage from "./pages/ScrumEventsPage";
 import ScrumArtifactsPage from "./pages/ScrumArtifactsPage";
 import { waitForBackendReady } from "./utils/backendReady";
 import BackendBootScreen from "./components/BackendBootScreen";
+import SprintSetupPage from "./pages/SprintSetup";
 
 function App(): JSX.Element {
   const [backendReady, setBackendReady] = useState(false);
@@ -109,6 +110,10 @@ function App(): JSX.Element {
               <Route
                 path="/projects/:projectId/:role/product-backlog"
                 element={<ProductBacklogPage />}
+              />
+              <Route
+                path="/projects/:projectId/:role/sprint-setup"
+                element={<SprintSetupPage />}
               />
               <Route
                 path="/projects/:projectId/:role/calendar"

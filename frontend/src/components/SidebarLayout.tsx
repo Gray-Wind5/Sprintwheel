@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode, JSX } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { listProjects, leaveProject, type Project } from "../api/projects";
+import {
+  listProjects,
+  leaveProject,
+  type Project,
+  type ProjectRole,
+} from "../api/projects";
 import NotificationBell from "./NotificationBell";
 import { useTheme } from "../pages/ThemeContext";
 
@@ -123,13 +128,13 @@ const styles: Record<string, CSSProperties> = {
     whiteSpace: "nowrap",
   },
   sidebarBottom: {
-  marginTop: 24,
-  display: "flex",
-  flexDirection: "column",
-  gap: 10,
-  paddingTop: 18,
-  paddingBottom: 24,
-},
+    marginTop: 24,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    paddingTop: 18,
+    paddingBottom: 24,
+  },
   selectorBox: {
     borderRadius: 12,
     padding: "12px 14px",
@@ -266,6 +271,7 @@ type NavItemProps = {
   isDark: boolean;
 };
 type StoredUser = { id?: string; name?: string; email?: string; role?: string };
+type ProjectWithJoinCode = Project & { join_code?: string };
 
 function NavItem({
   icon,
@@ -304,6 +310,30 @@ function NavItem({
   );
 }
 
+function projectRoleToRoleKey(role: ProjectRole): RoleKey {
+  switch (role) {
+    case "Product Owner":
+      return "product-owner";
+    case "Scrum Facilitator":
+      return "scrum-facilitator";
+    case "Developer":
+    default:
+      return "developer";
+  }
+}
+
+function roleKeyToProjectRole(role: RoleKey): ProjectRole {
+  switch (role) {
+    case "product-owner":
+      return "Product Owner";
+    case "scrum-facilitator":
+      return "Scrum Facilitator";
+    case "developer":
+    default:
+      return "Developer";
+  }
+}
+
 function getRoleMenuItems(basePath: string, role: RoleKey): SidebarItem[] {
   const commonItems: SidebarItem[] = [
     { icon: "📝", label: "To-Do / Planning", path: `${basePath}/to-do/planning` },
@@ -311,6 +341,7 @@ function getRoleMenuItems(basePath: string, role: RoleKey): SidebarItem[] {
     { icon: "📊", label: "Progress", path: `${basePath}/progress` },
     { icon: "📁", label: "Project Details", path: `${basePath}/project-details` },
     { icon: "🗂️", label: "Product Backlog", path: `${basePath}/product-backlog` },
+    { icon: "🏃‍♀️", label: "Sprint Setup", path: `${basePath}/sprint-setup` },
     { icon: "📅", label: "Calendar", path: `${basePath}/calendar` },
     { icon: "📚", label: "Education", path: `${basePath}/education` },
     { icon: "⚙️", label: "Settings", path: `${basePath}/settings` },
@@ -324,7 +355,11 @@ function getRoleMenuItems(basePath: string, role: RoleKey): SidebarItem[] {
       ];
     case "scrum-facilitator":
       return [
-        { icon: "🧭", label: "Scrum Facilitator Home", path: `${basePath}/scrum-facilitator-dashboard` },
+        {
+          icon: "🧭",
+          label: "Scrum Facilitator Home",
+          path: `${basePath}/scrum-facilitator-dashboard`,
+        },
         ...commonItems,
       ];
     case "developer":
@@ -377,7 +412,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
 
   const [collapsed, setCollapsed] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"" | "Copied!">("");
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectWithJoinCode[]>([]);
   const [user, setUser] = useState<StoredUser | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -388,10 +423,22 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
   const navigate = useNavigate();
   const location = useLocation();
   const { projectId, role } = useParams<{ projectId: string; role: RoleKey }>();
-  const basePath = projectId && role ? `/projects/${projectId}/${role}` : "";
+
+  const currentProject = useMemo(
+    () => projects.find((p) => p.id === projectId),
+    [projects, projectId]
+  );
+
+  const effectiveRole: RoleKey = currentProject?.role
+    ? projectRoleToRoleKey(currentProject.role)
+    : role ?? "developer";
+
+  const basePath = projectId ? `/projects/${projectId}/${effectiveRole}` : "";
 
   useEffect(() => {
-    listProjects().then(setProjects).catch(() => setProjects([]));
+    listProjects()
+      .then((data) => setProjects(data as ProjectWithJoinCode[]))
+      .catch(() => setProjects([]));
   }, [projectId]);
 
   useEffect(() => {
@@ -404,21 +451,30 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
     }
   }, []);
 
+  useEffect(() => {
+    if (!projectId || !role || !currentProject) return;
+
+    const correctRole = projectRoleToRoleKey(currentProject.role);
+    if (role !== correctRole) {
+      navigate(getLandingPathForRole(projectId, correctRole), { replace: true });
+    }
+  }, [projectId, role, currentProject, navigate]);
+
   const items = useMemo(() => {
-    if (!basePath || !role) return [];
-    return getRoleMenuItems(basePath, role);
-  }, [basePath, role]);
+    if (!basePath) return [];
+    return getRoleMenuItems(basePath, effectiveRole);
+  }, [basePath, effectiveRole]);
 
   const userName = user?.name?.trim() || "User";
   const userEmail = user?.email?.trim() || "No email found";
-  const userRole = user?.role?.trim() || role || "No role found";
+  const userRole = currentProject?.role || (role ? roleKeyToProjectRole(role) : "No role found");
   const userId = user?.id?.trim() || "No ID found";
   const avatarLetter = userName.charAt(0).toUpperCase() || "U";
+  const isCurrentProjectOwner = currentProject?.role === "Product Owner";
 
   async function handleCopyJoinCode() {
     if (!projectId) return;
 
-    const currentProject = projects.find((p) => p.id === projectId);
     const codeToCopy = currentProject?.join_code || projectId;
 
     try {
@@ -431,8 +487,13 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
   }
 
   function handleProjectSwitch(nextProjectId: string) {
-    if (!role || !nextProjectId) return;
-    navigate(getLandingPathForRole(nextProjectId, role));
+    if (!nextProjectId) return;
+
+    const selectedProject = projects.find((p) => p.id === nextProjectId);
+    if (!selectedProject) return;
+
+    const nextRole = projectRoleToRoleKey(selectedProject.role);
+    navigate(getLandingPathForRole(nextProjectId, nextRole));
   }
 
   function logout() {
@@ -457,7 +518,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          join_code: joinCode,
+          join_code: joinCode.trim(),
           role: "Developer",
         }),
       });
@@ -468,11 +529,17 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
         throw new Error(data.detail || "Failed to join project");
       }
 
-      const updatedProjects = await listProjects();
+      const updatedProjects = (await listProjects()) as ProjectWithJoinCode[];
       setProjects(updatedProjects);
 
       setJoinCode("");
-      navigate(getLandingPathForRole(data.project_id, "developer"));
+
+      const joinedProject = updatedProjects.find((p) => p.id === data.project_id);
+      const joinedRole = joinedProject
+        ? projectRoleToRoleKey(joinedProject.role)
+        : "developer";
+
+      navigate(getLandingPathForRole(data.project_id, joinedRole));
     } catch (err: any) {
       setJoinError(err.message || "Failed to join project");
     } finally {
@@ -483,9 +550,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
   async function handleLeaveProject() {
     if (!projectId) return;
 
-    const confirmed = window.confirm(
-      "Are you sure you want to leave this project?"
-    );
+    const confirmed = window.confirm("Are you sure you want to leave this project?");
     if (!confirmed) return;
 
     try {
@@ -493,22 +558,14 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
 
       await leaveProject(projectId);
 
-      const updatedProjects = await listProjects();
-
+      const updatedProjects = (await listProjects()) as ProjectWithJoinCode[];
       setProjects(updatedProjects);
 
       if (updatedProjects.length > 0) {
         const fallbackProject = updatedProjects[0];
+        const fallbackRole = projectRoleToRoleKey(fallbackProject.role);
 
-        const resolvedRole =
-          role ??
-          (user?.role === "Product Owner"
-            ? "product-owner"
-            : user?.role === "Scrum Facilitator"
-              ? "scrum-facilitator"
-              : "developer");
-
-        navigate(getLandingPathForRole(fallbackProject.id, resolvedRole as RoleKey), {
+        navigate(getLandingPathForRole(fallbackProject.id, fallbackRole), {
           replace: true,
         });
       } else {
@@ -586,7 +643,14 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
               )}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                alignItems: "center",
+              }}
+            >
               <button
                 type="button"
                 style={{
@@ -710,7 +774,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleJoinByCode();
+                      if (e.key === "Enter") void handleJoinByCode();
                     }}
                     style={{
                       ...styles.select,
@@ -723,7 +787,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
 
                   <button
                     type="button"
-                    onClick={handleJoinByCode}
+                    onClick={() => void handleJoinByCode()}
                     disabled={joining}
                     style={{
                       borderRadius: 10,
@@ -741,9 +805,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
                 </div>
 
                 {joinError && (
-                  <div style={{ color: "#ef4444", fontSize: 12 }}>
-                    {joinError}
-                  </div>
+                  <div style={{ color: "#ef4444", fontSize: 12 }}>{joinError}</div>
                 )}
               </div>
             )}
@@ -768,21 +830,21 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
                 type="button"
                 style={{
                   ...styles.bottomButton,
-                  background: role === "product-owner" ? colors.surfaceStrong : "#ef4444",
+                  background: isCurrentProjectOwner ? colors.surfaceStrong : "#ef4444",
                   border: `1px solid ${colors.borderStrong}`,
-                  color: role === "product-owner" ? colors.text : "white",
-                  opacity: role === "product-owner" ? 0.7 : 1,
-                  cursor: role === "product-owner" ? "not-allowed" : "pointer",
+                  color: isCurrentProjectOwner ? colors.text : "white",
+                  opacity: isCurrentProjectOwner ? 0.7 : 1,
+                  cursor: isCurrentProjectOwner ? "not-allowed" : "pointer",
                 }}
-                onClick={role === "product-owner" ? undefined : handleLeaveProject}
-                disabled={leaving || role === "product-owner"}
+                onClick={isCurrentProjectOwner ? undefined : () => void handleLeaveProject()}
+                disabled={leaving || isCurrentProjectOwner}
                 title={
-                  role === "product-owner"
+                  isCurrentProjectOwner
                     ? "Transfer ownership before leaving the project"
                     : undefined
                 }
               >
-                {role === "product-owner"
+                {isCurrentProjectOwner
                   ? "Transfer Ownership to Leave"
                   : leaving
                     ? "Leaving..."
@@ -793,8 +855,8 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
             {!collapsed && projectId && (
               <button
                 type="button"
-                onClick={handleCopyJoinCode}
-                title="Click to copy project ID"
+                onClick={() => void handleCopyJoinCode()}
+                title="Click to copy project join code"
                 style={{
                   ...styles.projectBox,
                   background: colors.surface,
@@ -803,9 +865,7 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
                 }}
               >
                 <div style={styles.projectIdTitle}>Project Join Code</div>
-                <div>
-                  {projects.find(p => p.id === projectId)?.join_code || projectId}
-                </div>
+                <div>{currentProject?.join_code || projectId}</div>
                 <div
                   style={{
                     ...styles.copyHint,

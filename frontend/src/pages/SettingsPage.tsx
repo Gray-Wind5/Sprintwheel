@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties, type JSX } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://sprintwheel.onrender.com";
+const API_BASE =
+  import.meta.env.VITE_API_URL?.trim() || "https://sprintwheel.onrender.com";
 
 export default function SettingsPage(): JSX.Element {
   const { theme, toggleTheme } = useTheme();
@@ -247,13 +248,17 @@ export default function SettingsPage(): JSX.Element {
       setNameError("Please enter your current password.");
       return;
     }
+
     if (!account.newName.trim()) {
       setNameError("Please enter a new name.");
       return;
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("access_token");
+
       const res = await fetch(`${API_BASE}/auth/change-name`, {
         method: "PUT",
         headers: {
@@ -296,6 +301,7 @@ export default function SettingsPage(): JSX.Element {
       setPasswordError("Please fill in all password fields.");
       return;
     }
+
     if (account.newPassword !== account.confirmPassword) {
       setPasswordError("New passwords do not match.");
       return;
@@ -348,9 +354,16 @@ export default function SettingsPage(): JSX.Element {
             </p>
             <div style={styles.topActions}>
               <button style={styles.primaryButton}>Save Changes</button>
-              <button style={styles.secondaryButton} onClick={() => {
-                if (theme !== "dark") { toggleTheme(); }
-              }}>Reset to Default</button>
+              <button
+                style={styles.secondaryButton}
+                onClick={() => {
+                  if (theme !== "dark") {
+                    toggleTheme();
+                  }
+                }}
+              >
+                Reset to Default
+              </button>
             </div>
           </div>
 
@@ -362,11 +375,13 @@ export default function SettingsPage(): JSX.Element {
                 experience.
               </p>
               <button style={styles.smallButton} onClick={toggleTheme}>
-                {theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                {theme === "dark"
+                  ? "Switch to Light Mode"
+                  : "Switch to Dark Mode"}
               </button>
             </div>
 
-{/*}
+            {/*
             <div style={styles.quickCard}>
               <h3 style={styles.quickTitle}>Dashboard Layout</h3>
               <p style={styles.quickText}>
@@ -374,8 +389,9 @@ export default function SettingsPage(): JSX.Element {
               </p>
               <button style={styles.smallButton}>Customize Layout</button>
             </div>
-*/}
-{/*
+            */}
+
+            {/*
             <div style={styles.quickCard}>
               <h3 style={styles.quickTitle}>Integrations</h3>
               <p style={styles.quickText}>
@@ -383,8 +399,9 @@ export default function SettingsPage(): JSX.Element {
               </p>
               <button style={styles.smallButton}>Manage Integrations</button>
             </div>
-*/}
-{/*}
+            */}
+
+            {/*
             <div style={styles.quickCard}>
               <h3 style={styles.quickTitle}>Permissions</h3>
               <p style={styles.quickText}>
@@ -392,11 +409,10 @@ export default function SettingsPage(): JSX.Element {
               </p>
               <button style={styles.smallButton}>View Access Controls</button>
             </div>
-*/}
+            */}
           </div>
 
           <div style={styles.grid}>
-            {/* User Profile Card */}
             <div style={styles.card}>
               <h2 style={styles.cardTitle}>User Profile</h2>
               <p style={styles.cardText}>
@@ -420,7 +436,10 @@ export default function SettingsPage(): JSX.Element {
                   type="password"
                   value={account.nameCurrentPassword}
                   onChange={(e) =>
-                    setAccount({ ...account, nameCurrentPassword: e.target.value })
+                    setAccount({
+                      ...account,
+                      nameCurrentPassword: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -446,22 +465,6 @@ export default function SettingsPage(): JSX.Element {
               </div>
             </div>
 
-            {/* Notification Preferences Card */}
-            {/*
-            <div style={styles.card}>
-              <h2 style={styles.cardTitle}>Notification Preferences</h2>
-              <p style={styles.cardText}>
-                Control how you receive updates through email, in-app alerts, and
-                reminders.
-              </p>
-              <div style={styles.buttonRow}>
-                <button style={styles.smallButton}>Edit Notifications</button>
-                <button style={styles.outlineButton}>Mute All</button>
-              </div>
-            </div>
-            */}
-
-            {/* Account Settings Card */}
             <div style={styles.card}>
               <h2 style={styles.cardTitle}>Account Settings</h2>
               <p style={styles.cardText}>
@@ -505,7 +508,10 @@ export default function SettingsPage(): JSX.Element {
                   type="password"
                   value={account.passwordCurrentPassword}
                   onChange={(e) =>
-                    setAccount({ ...account, passwordCurrentPassword: e.target.value })
+                    setAccount({
+                      ...account,
+                      passwordCurrentPassword: e.target.value,
+                    })
                   }
                 />
               </div>
@@ -529,22 +535,34 @@ export default function SettingsPage(): JSX.Element {
                   type="password"
                   value={account.confirmPassword}
                   onChange={(e) =>
-                    setAccount({ ...account, confirmPassword: e.target.value })
+                    setAccount({
+                      ...account,
+                      confirmPassword: e.target.value,
+                    })
                   }
                 />
               </div>
 
               <div style={styles.buttonRow}>
-                <button style={styles.smallButton} onClick={handlePasswordChange}>
+                <button
+                  style={styles.smallButton}
+                  onClick={handlePasswordChange}
+                >
                   Change Password
                 </button>
-                {passwordMessage && <p style={styles.successText}>{passwordMessage}</p>}
-                {passwordError && <p style={styles.errorText}>{passwordError}</p>}
+                {passwordMessage && (
+                  <p style={styles.successText}>{passwordMessage}</p>
+                )}
+                {passwordError && (
+                  <p style={styles.errorText}>{passwordError}</p>
+                )}
               </div>
             </div>
           </div>
 
-          {loadError && <p style={{ ...styles.errorText, marginTop: 16 }}>{loadError}</p>}
+          {loadError && (
+            <p style={{ ...styles.errorText, marginTop: 16 }}>{loadError}</p>
+          )}
         </div>
       </div>
     </SidebarLayout>
