@@ -1241,7 +1241,7 @@ export default function ScrumFacilitatorPage(): JSX.Element {
                 >
                   <div>
                     <p style={eyebrow}>Education Admin</p>
-                    <h2 style={cardTitle}>Admin Scrum Edu</h2>
+                    <h2 style={cardTitle}>Scrum Edu</h2>
                     <p style={cardDesc}>
                       A smaller live version of the actual Education page.
                     </p>
