@@ -341,8 +341,7 @@ export default function SettingsPage(): JSX.Element {
           <div style={styles.header}>
             <h1 style={styles.title}>Settings</h1>
             <p style={styles.subtitle}>
-              Manage your personal preferences, account details, notifications,
-              permissions, and workspace experience all in one place.
+              Manage your appearance, update your account details, and account settings all in one place.
             </p>
             <div style={styles.topActions}>
               <button style={styles.primaryButton}>Save Changes</button>
