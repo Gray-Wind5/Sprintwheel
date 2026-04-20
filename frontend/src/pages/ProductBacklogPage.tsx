@@ -542,7 +542,7 @@ export default function ProductBacklogPage(): JSX.Element {
             color: isDark ? "rgba(255,255,255,0.85)" : "#4b5563",
           }}
         >
-          Stories stay visible here even after sprint assignment, so backlog, sprint planning, and burndown remain connected.
+          Add and manage product features here! 
         </p>
 
         <div

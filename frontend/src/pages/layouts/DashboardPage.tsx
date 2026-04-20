@@ -414,7 +414,7 @@
                     color: isDark ? "rgba(255,255,255,0.55)" : "#6b7280",
                   }}
                 >
-                  Your sprint workspace at a glance
+                  To-Do · Education · Progress
                 </p>
               </div>
   
