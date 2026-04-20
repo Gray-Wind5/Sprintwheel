@@ -1,195 +1,196 @@
-import{ useState, useEffect, type CSSProperties, type JSX } from "react";
-//import SprintBurndownChart from "../components/SprintBurndownChart"; //FOR STATIC OLD ONE, PLS KEEP FOR NOW
+import { useEffect, useState, type CSSProperties, type JSX } from "react";
 import SidebarLayout from "../components/SidebarLayout";
 import { useTheme } from "./ThemeContext";
-
-
+import { api } from "../api/client";
 import { useSprintBurndownData } from "../hooks/useBurndown";
 import { BurndownChartUI } from "../components/BurndownChartUI";
-import { useParams } from "react-router-dom"; 
+import { useNavigate, useParams } from "react-router-dom";
+
+interface Sprint {
+  id: string;
+  sprint_number: number;
+  sprint_name?: string;
+  is_active?: boolean;
+  start_date?: string;
+  end_date?: string;
+}
 
 export default function ProgressPage(): JSX.Element {
-    const { theme } = useTheme();
-    const isDark = theme === "dark";
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+  const navigate = useNavigate();
+  const { projectId, role } = useParams<{ projectId: string; role: string }>();
 
-    const containerStyle: CSSProperties = {
-
-        //display: "flex",
-        //flexDirection: "column",
-        
-        padding: 40,
-        minHeight: "100vh",
-        background: isDark ? "#0b0f17" : "#f8fafc",
-        color: isDark ? "white" : "#111827",
-    };
-
-    const mainContentStyle: CSSProperties = {
-        display:  "flex",
-        gap: "24px",
-        alignItems: "flex-start",
-        width: "100%",
-        marginTop: "24px",
-    }
-
-    const chartWrapperStyle: CSSProperties = {
-        flex: 3,
-
-        //display: "flex",
-        //gap: "24px",
-        //alignItems: "flext-start",
-        //width: "100%",
-
-        padding: 40,
-        marginTop: 16,
-        marginBottom: 30,
-        borderRadius: 16,
-        background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
-        border: isDark
-            ? "1px solid rgba(255,255,255,0.1)"
-            : "1px solid rgba(17,24,39,0.1)",
-    };
-
-    const velocityBlockStyle: CSSProperties = {
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      gap: "20px",
-    }
-
-    const velocityCardStyle: CSSProperties = {
-      //width: "200px",
-      //flex: "none",
-
-      //minWidth: "240px",
-      //flex: "none",
-
-      padding: 20,
-      marginTop: 16,
-      borderRadius: 16,
-      background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
-      border: isDark 
-        ? "1px solid rgba(255,255,255,0.1)"
-        : "1px solid rgba(17,24,39,0.1)",
-      //minWidth: "200px",
-      //color: "white"
-    }
-
-    const { projectId } = useParams<{ projectId: string }>();
-    const [sprintId, setSprintId] = useState<string>("");
+  const [sprints, setSprints] = useState<Sprint[]>([]);
+  const [sprintId, setSprintId] = useState<string>("");
+  const [loadingSprints, setLoadingSprints] = useState<boolean>(true);
 
   useEffect(() => {
     if (!projectId) return;
 
-    fetch(`http://127.0.0.1:8000/sprints?project_id=${projectId}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    })
-      .then(res => res.json())
-      .then((sprints: any[]) => {
+    let cancelled = false;
 
-        const activeSprint = sprints.find(s => s.is_active);
+    async function fetchProjectSprints() {
+      setLoadingSprints(true);
+      try {
+        const data = await api<Sprint[]>(`/sprints?project_id=${projectId}`);
+        if (cancelled) return;
 
-        if (activeSprint) {
-          setSprintId(activeSprint.id);
-        } else {
-          console.warn("No active sprint found for this project.");
+        const list = Array.isArray(data) ? data : [];
+        setSprints(list);
+
+        setSprintId((prev) => {
+          if (prev && list.some((s) => s.id === prev)) return prev;
+          const preferred = list.find((s) => s.is_active) ?? list[0] ?? null;
+          return preferred?.id ?? "";
+        });
+      } catch (err) {
+        console.error("Error resolving sprint:", err);
+        if (!cancelled) {
+          setSprints([]);
+          setSprintId("");
         }
-      })
-      .catch((err) => console.error("Error resolving sprint:", err));
+      } finally {
+        if (!cancelled) setLoadingSprints(false);
+      }
+    }
+
+    void fetchProjectSprints();
+
+    return () => {
+      cancelled = true;
+    };
   }, [projectId]);
 
-    const { chartData, sprintNumber, velocity, expectedVelocity, loading } = useSprintBurndownData(sprintId);    
+  const { chartData, sprintNumber, velocity, expectedVelocity, loading } =
+    useSprintBurndownData(projectId ?? "", sprintId);
 
+  const containerStyle: CSSProperties = {
+    padding: 40,
+    minHeight: "100vh",
+    background: isDark ? "#0b0f17" : "#f8fafc",
+    color: isDark ? "white" : "#111827",
+  };
+
+  const mainContentStyle: CSSProperties = {
+    display: "flex",
+    gap: "24px",
+    alignItems: "flex-start",
+    width: "100%",
+    marginTop: "24px",
+  };
+
+  const chartWrapperStyle: CSSProperties = {
+    flex: 3,
+    padding: 32,
+    marginTop: 16,
+    marginBottom: 30,
+    borderRadius: 16,
+    background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(17,24,39,0.1)",
+  };
+
+  const velocityBlockStyle: CSSProperties = {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+  };
+
+  const velocityCardStyle: CSSProperties = {
+    padding: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    background: isDark ? "rgba(255,255,255,0.05)" : "rgba(17,24,39,0.04)",
+    border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(17,24,39,0.1)",
+  };
 
   return (
     <SidebarLayout>
       <div style={containerStyle}>
-        <h1>Progress Page</h1>
-        <p>This is where the Burndown Chart, Velocity Chart, & Sprint Report will live</p>
+        <h1 style={{ fontSize: "42px", fontWeight: 800, marginBottom: 8 }}>Sprint Progress</h1>
+        <p style={{ fontSize: "18px", opacity: 0.85 }}>
+          View burndown for the active sprint or any past sprint.
+        </p>
 
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 20 }}>
+          <select
+            value={sprintId}
+            onChange={(e) => setSprintId(e.target.value)}
+            style={{
+              minWidth: 260,
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid #cbd5e1",
+              fontSize: 16,
+            }}
+            disabled={loadingSprints || sprints.length === 0}
+          >
+            <option value="">Select sprint</option>
+            {sprints.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.sprint_name || `Sprint ${s.sprint_number}`}
+                {s.is_active ? " (Active)" : ""}
+              </option>
+            ))}
+          </select>
 
-        <h1 style={{ fontSize: "32px", fontWeight: 700 }}>
-          {loading ? "Loading..." : `Sprint ${sprintNumber} Burndown`}
-        </h1>
+          <button
+            onClick={() => {
+              if (projectId && role) navigate(`/projects/${projectId}/${role}/sprint-setup`);
+            }}
+            style={{
+              padding: "12px 16px",
+              borderRadius: 12,
+              border: "1px solid #cbd5e1",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            Manage Sprints
+          </button>
+        </div>
+
+        <h2 style={{ fontSize: "32px", fontWeight: 700, marginTop: 28 }}>
+          {loading || loadingSprints
+            ? "Loading..."
+            : sprintId
+              ? `Sprint ${sprintNumber} Burndown`
+              : "No sprint selected"}
+        </h2>
 
         <div style={mainContentStyle}>
-
-          <div style={ chartWrapperStyle }>
+          <div style={chartWrapperStyle}>
             {!sprintId ? (
-                <p style={{ color: "#7C4DFF" }}>No active sprint found for this project.</p>
-              ) : loading ? (
-                <p style={{ color: "#7C4DFF" }}>Fetching burndown data...</p>
-              ) : chartData.length > 0 ? (
-                <BurndownChartUI data={chartData} />
-              ) : (
-                <p style={{ color: "#7C4DFF" }}>No data found for this sprint.</p>
-              )}
+              <p style={{ color: "#7C4DFF" }}>No sprint selected.</p>
+            ) : loading ? (
+              <p style={{ color: "#7C4DFF" }}>Fetching burndown data...</p>
+            ) : chartData.length > 0 ? (
+              <BurndownChartUI data={chartData} />
+            ) : (
+              <p style={{ color: "#7C4DFF" }}>No burndown data found for this sprint.</p>
+            )}
           </div>
 
           <div style={velocityBlockStyle}>
             <div style={velocityCardStyle}>
-              <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8}}>
-                Current Velocity
-              </h3>
-              <p 
-                style={{ 
-                  margin: "10px 0 0 0", 
-                  fontSize: "42px", 
-                  fontWeight: 800,
-                  color: "#7C4DFF" 
-                }}
-              >
+              <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8 }}>Current Velocity</h3>
+              <p style={{ margin: "10px 0 0 0", fontSize: "42px", fontWeight: 800, color: "#7C4DFF" }}>
                 {loading ? "--" : velocity}
-                <span 
-                  style={{
-                    fontSize: "18px", 
-                    fontWeight: 400, 
-                    marginLeft: "8px",
-                    //color: "white" 
-                  }}
-                >
-                  pts
-                </span>
+                <span style={{ fontSize: "18px", fontWeight: 400, marginLeft: "8px" }}>pts</span>
               </p>
             </div>
 
             <div style={velocityCardStyle}>
-              <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8 }}>
-                Expected Velocity
-              </h3>
-              <p 
-                style={{ 
-                  margin: "10px 0 0 0", 
-                  fontSize: "42px", 
-                  fontWeight: 800, 
-                  color: "#94A3B8" 
-                }}
-              >
+              <h3 style={{ margin: 0, fontSize: "20px", opacity: 0.8 }}>Expected Velocity</h3>
+              <p style={{ margin: "10px 0 0 0", fontSize: "42px", fontWeight: 800, color: "#94A3B8" }}>
                 {loading ? "--" : expectedVelocity}
-                <span 
-                  style={{ 
-                    fontSize: "18px", 
-                    fontWeight: 400, 
-                    marginLeft: "8px",
-                    //color: "white"
-                  }}
-                >
-                  pts
-                </span>
+                <span style={{ fontSize: "18px", fontWeight: 400, marginLeft: "8px" }}>pts</span>
               </p>
             </div>
-
-
           </div>
-
         </div>
-      
-      {/*}
-        <h2>Sprint #BLANK Burndown Chart</h2>
-        <div style={chartWrapperStyle}>
-          <SprintBurndownChart />
-        </div>   
-      */} 
-
       </div>
     </SidebarLayout>
   );

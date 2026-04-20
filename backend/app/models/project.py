@@ -13,6 +13,7 @@ class Project(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
+    join_code = Column(String, nullable=True, unique=True, index=True)
     sprint_duration = Column(Integer, nullable=False)
     project_velocity = Column(Float, nullable=False, default=0.0)
 
@@ -24,6 +25,13 @@ class Project(Base):
     stories = relationship(
         "Story",
         back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    project_members = relationship(
+        "ProjectMember",
+        backref="project",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
