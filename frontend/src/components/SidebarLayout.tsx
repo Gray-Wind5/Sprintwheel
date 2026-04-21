@@ -108,7 +108,6 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     padding: 0,
-    overflow: "hidden",
   },
   collapsedToggleWrap: {
     width: "100%",
@@ -622,6 +621,9 @@ export default function SidebarLayout({ children }: { children: ReactNode }): JS
             ...styles.sidebar,
             ...(collapsed ? styles.collapsedSidebar : {}),
             width: collapsed ? 72 : 320,
+            padding: collapsed ? 0 : 20,
+            overflowY: collapsed ? "hidden" : "auto",
+            overflowX: "hidden",
             background: colors.panelBg,
             borderRight: `1px solid ${colors.border}`,
           }}
