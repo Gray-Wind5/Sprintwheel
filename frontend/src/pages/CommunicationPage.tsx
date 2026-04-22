@@ -650,7 +650,7 @@ const emptyStateTitleStyle: CSSProperties = {
 const emptyStateTextStyle: CSSProperties = {
   margin: 0,
   fontSize: 13,
-  color: "#4b5563",
+  color: "#2d333b",
   lineHeight: 1.45,
 };
 
